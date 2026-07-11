@@ -1,5 +1,5 @@
 # ============================================
-# DASHBOARD SIASI - VERSÃO 5 (COM ABA REGISTROS E LOGIN)
+# DASHBOARD SIASI - VERSÃO 5 (COM ABA REGISTROS)
 # ============================================
 
 suppressWarnings({
@@ -10,14 +10,6 @@ suppressWarnings({
   library(shinydashboard)
   library(plotly)
 })
-
-# ============================================
-# CONFIGURAÇÃO DE SENHA
-# ============================================
-# Dica: em produção, evite deixar a senha "hardcoded" no código.
-# Prefira algo como: SENHA_DASHBOARD <- Sys.getenv("SENHA_DASHBOARD")
-# e definir a variável de ambiente no servidor onde o app roda.
-SENHA_DASHBOARD <- "siasi2026#"
 
 # ============================================
 # CARREGAR E PREPARAR DADOS
@@ -142,42 +134,8 @@ populacao_dsei_calc <- populacao_dsei %>%
 # UI DO SHINY
 # ============================================
 
-# --- Tela de login ---
-login_ui <- fluidPage(
-  tags$head(
-    tags$style(HTML("
-      body { background-color: #ecf0f5; }
-      .login-box {
-        max-width: 380px;
-        margin: 8% auto;
-        padding: 30px;
-        background: #ffffff;
-        border-radius: 10px;
-        box-shadow: 0 2px 12px rgba(0,0,0,0.15);
-        text-align: center;
-      }
-      .login-box h2 { color: #367fa9; margin-bottom: 20px; }
-      .login-erro { color: #e74c3c; font-weight: bold; margin-top: 10px; }
-    "))
-  ),
-  div(class = "login-box",
-      h2("Dashboard SIASI"),
-      icon("lock", style = "font-size: 40px; color: #367fa9; margin-bottom: 15px;"),
-      passwordInput("senha_login", NULL, placeholder = "Digite a senha"),
-      actionButton("btn_login", "Entrar", icon = icon("sign-in-alt"),
-                   class = "btn-primary", style = "width: 100%;"),
-      uiOutput("login_erro")
-  )
-)
-
-# --- Conteúdo do dashboard (o que já existia) ---
-dashboard_ui <- dashboardPage(
-  dashboardHeader(
-    title = "Dashboard SIASI",
-    tags$li(class = "dropdown",
-            actionButton("btn_logout", "Sair", icon = icon("sign-out-alt"),
-                         style = "margin: 8px; background-color: #dd4b39; color: white; border: none;"))
-  ),
+ui <- dashboardPage(
+  dashboardHeader(title = "Dashboard SIASI"),
   
   dashboardSidebar(
     sidebarMenu(
@@ -304,43 +262,11 @@ dashboard_ui <- dashboardPage(
   )
 )
 
-# --- UI final: alterna entre login e dashboard via server ---
-ui <- uiOutput("pagina_principal")
-
 # ============================================
 # SERVER DO SHINY
 # ============================================
 
 server <- function(input, output, session) {
-  
-  # ============================================
-  # AUTENTICAÇÃO
-  # ============================================
-  autenticado <- reactiveVal(FALSE)
-  
-  output$pagina_principal <- renderUI({
-    if (autenticado()) {
-      dashboard_ui
-    } else {
-      login_ui
-    }
-  })
-  
-  observeEvent(input$btn_login, {
-    if (!is.null(input$senha_login) && input$senha_login == SENHA_DASHBOARD) {
-      autenticado(TRUE)
-      output$login_erro <- renderUI(NULL)
-    } else {
-      output$login_erro <- renderUI({
-        div(class = "login-erro", "Senha incorreta. Tente novamente.")
-      })
-    }
-  })
-  
-  observeEvent(input$btn_logout, {
-    autenticado(FALSE)
-    updateTextInput(session, "senha_login", value = "")
-  })
   
   # ============================================
   # REGISTROS GERAIS
