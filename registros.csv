@@ -1,9 +1,15 @@
-Categorias;Frequencias
-Total original;1394825
-Somente ativos;1228559
-Somente indígenas;1354002
-Ativos e indígenas;1191377
-Não ativos;166266
-Não indígenas;40823
-Ano nascimento nulo;211
-Dt nascimento nulo;0
+categorias;frequencias;percentual_total_original
+Total original;1316208;100.0
+Somente ativos;1196955;90.94
+Somente indígenas;1277668;97.07
+Ativos e indígenas;1160735;88.19
+Não ativos;158538;12.05
+Não indígenas;39977;3.04
+Ano nascimento nulo;211;0.02
+Dt nascimento nulo;0;0.0
+Total aldeados;1259734;95.71
+Somente ativos (aldeados);1140155;86.62
+Somente indígenas (aldeados);1225099;93.08
+Ativos e indígenas (aldeados);1107816;84.17
+Não ativos (aldeados);157259;11.95
+Não indígenas (aldeados);35790;2.72

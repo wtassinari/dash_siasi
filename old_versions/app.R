@@ -1,5 +1,5 @@
 # ============================================
-# DASHBOARD SIASI - VERSÃO 5 (COM ABA REGISTROS)
+# DASHBOARD SIASI - VERSÃO 6 (CARDS + REGISTROS + LOGIN)
 # ============================================
 
 suppressWarnings({
@@ -12,13 +12,46 @@ suppressWarnings({
 })
 
 # ============================================
+# CONFIGURAÇÃO DE SENHA
+# ============================================
+# A senha é lida de uma variável de ambiente, NUNCA fica escrita no código
+# (importante já que o app.R vai para o GitHub).
+# No Posit Connect: Configurações do app > Vars > adicionar SENHA_DASHBOARD.
+# Localmente (RStudio): defina em um arquivo .Renviron (que NÃO deve ir pro Git).
+SENHA_DASHBOARD <- Sys.getenv("SENHA_DASHBOARD", unset = "")
+
+if (SENHA_DASHBOARD == "") {
+  stop("A variável de ambiente SENHA_DASHBOARD não foi definida. Configure-a no Posit Connect (Vars) antes de publicar/rodar o app.")
+}
+
+# ============================================
 # CARREGAR E PREPARAR DADOS
 # ============================================
 
 # Registros Gerais
 registros <- read.csv("registros.csv", sep=";", stringsAsFactors = FALSE)
-names(registros) <- c("categorias", "frequencias")
+names(registros) <- c("categorias", "frequencias", "percentual_total_original")
 registros$frequencias <- as.numeric(registros$frequencias)
+registros$percentual_total_original <- as.numeric(registros$percentual_total_original)
+
+# Linhas que representam o filtro "Apenas Aldeados" (para destacar na tabela)
+categorias_aldeados <- registros$categorias[grepl("aldeados", registros$categorias, ignore.case = TRUE)]
+
+# --- Valor externo: Total Original (não deduplicado) ---
+total_original_externo <- 1394825
+
+# --- Categorias que serão extraídas para os cards (marcadas em vermelho) ---
+categorias_cards <- c(
+  "Total original",
+  "Total aldeados",
+  "Somente ativos (aldeados)",
+  "Somente indígenas (aldeados)",
+  "Ativos e indígenas (aldeados)"
+)
+
+# Tabela filtrada sem os registros que viraram cards
+registros_tabela <- registros %>%
+  filter(!categorias %in% categorias_cards)
 
 # Dados de Nascimentos por Ano (com todas as categorias)
 anonasc <- read.csv("frequencia_ano_nascimento.csv", sep=";")
@@ -31,7 +64,7 @@ anonasc_calc <- anonasc %>%
 
 # Dados de Nascimentos por DSEI
 nascimentos_dsei <- read.csv("frequencia_ano_nascimento_dsei.csv", sep=";", stringsAsFactors = FALSE)
-names(nascimentos_dsei) <- c("ds_dsei", "co_dsei_polo", "ano_nascimento", 
+names(nascimentos_dsei) <- c("ds_dsei", "co_dsei_polo", "ano_nascimento",
                              "frequencia_ativos", "frequencia_ativos_indigenas")
 
 nascimentos_dsei_calc <- nascimentos_dsei %>%
@@ -59,7 +92,7 @@ nascimentos_dsei_calc <- nascimentos_dsei %>%
 
 # Dados de Óbitos por Ano
 obitos_ano <- read.csv("frequencia_ano_obitos.csv", sep=";", stringsAsFactors = FALSE)
-names(obitos_ano) <- c("ano_obito", "frequencia_obitos", "percentual", 
+names(obitos_ano) <- c("ano_obito", "frequencia_obitos", "percentual",
                        "frequencia_acumulada", "percentual_acumulado")
 
 obitos_ano_calc <- obitos_ano %>%
@@ -71,8 +104,8 @@ obitos_ano_calc <- obitos_ano %>%
 
 # Dados de Óbitos por DSEI
 obitos_dsei <- read.csv("frequencia_ano_obitos_dsei.csv", sep=";", stringsAsFactors = FALSE)
-names(obitos_dsei) <- c("ds_dsei", "co_dsei_polo", "ano_obito", 
-                        "frequencia_simples", "percentual", 
+names(obitos_dsei) <- c("ds_dsei", "co_dsei_polo", "ano_obito",
+                        "frequencia_simples", "percentual",
                         "frequencia_acumulada", "percentual_acumulado")
 
 obitos_dsei_clean <- obitos_dsei %>%
@@ -134,8 +167,42 @@ populacao_dsei_calc <- populacao_dsei %>%
 # UI DO SHINY
 # ============================================
 
-ui <- dashboardPage(
-  dashboardHeader(title = "Dashboard SIASI"),
+# --- Tela de login ---
+login_ui <- fluidPage(
+  tags$head(
+    tags$style(HTML("
+      body { background-color: #ecf0f5; }
+      .login-box {
+        max-width: 380px;
+        margin: 8% auto;
+        padding: 30px;
+        background: #ffffff;
+        border-radius: 10px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+        text-align: center;
+      }
+      .login-box h2 { color: #367fa9; margin-bottom: 20px; }
+      .login-erro { color: #e74c3c; font-weight: bold; margin-top: 10px; }
+    "))
+  ),
+  div(class = "login-box",
+      h2("Dashboard SIASI"),
+      icon("lock", style = "font-size: 40px; color: #367fa9; margin-bottom: 15px;"),
+      passwordInput("senha_login", NULL, placeholder = "Digite a senha"),
+      actionButton("btn_login", "Entrar", icon = icon("sign-in-alt"),
+                   class = "btn-primary", style = "width: 100%;"),
+      uiOutput("login_erro")
+  )
+)
+
+# --- Conteúdo do dashboard (o que já existia) ---
+dashboard_ui <- dashboardPage(
+  dashboardHeader(
+    title = "Dashboard SIASI",
+    tags$li(class = "dropdown",
+            actionButton("btn_logout", "Sair", icon = icon("sign-out-alt"),
+                         style = "margin: 8px; background-color: #dd4b39; color: white; border: none;"))
+  ),
   
   dashboardSidebar(
     sidebarMenu(
@@ -152,6 +219,45 @@ ui <- dashboardPage(
         .content-wrapper, .right-side { background-color: #f4f4f4; }
         .box { border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         .dataTables_wrapper { font-size: 12px; }
+        
+        /* Estilos personalizados para os cards de registros */
+        .registro-card {
+          background: #ffffff;
+          border-radius: 12px;
+          padding: 20px 18px;
+          text-align: center;
+          box-shadow: 0 3px 12px rgba(0,0,0,0.1);
+          border-top: 4px solid #e74c3c;
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .registro-card:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 5px 18px rgba(0,0,0,0.15);
+        }
+        .registro-card .card-icon {
+          font-size: 36px;
+          color: #e74c3c;
+          margin-bottom: 8px;
+        }
+        .registro-card .card-label {
+          font-size: 13px;
+          color: #555;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          margin-bottom: 6px;
+        }
+        .registro-card .card-valor {
+          font-size: 28px;
+          font-weight: 700;
+          color: #2c3e50;
+          margin-bottom: 4px;
+        }
+        .registro-card .card-percentual {
+          font-size: 15px;
+          color: #e74c3c;
+          font-weight: 600;
+        }
       "))
     ),
     
@@ -160,8 +266,13 @@ ui <- dashboardPage(
       # ABA: REGISTROS GERAIS
       # ============================================
       tabItem(tabName = "registros",
+              # --- CARDS COM OS REGISTROS DESTACADOS ---
               fluidRow(
-                box(title = "Registros Gerais da Base de Dados", status = "primary", solidHeader = TRUE, width = 12,
+                htmlOutput("cards_registros")
+              ),
+              # --- TABELA COM OS DEMAIS REGISTROS ---
+              fluidRow(
+                box(title = "Outros Registros da Base de Dados", status = "primary", solidHeader = TRUE, width = 12,
                     DTOutput("registros_table"))
               )
       ),
@@ -262,6 +373,9 @@ ui <- dashboardPage(
   )
 )
 
+# --- UI final: alterna entre login e dashboard via server ---
+ui <- uiOutput("pagina_principal")
+
 # ============================================
 # SERVER DO SHINY
 # ============================================
@@ -269,25 +383,121 @@ ui <- dashboardPage(
 server <- function(input, output, session) {
   
   # ============================================
-  # REGISTROS GERAIS
+  # AUTENTICAÇÃO
+  # ============================================
+  autenticado <- reactiveVal(FALSE)
+  
+  output$pagina_principal <- renderUI({
+    if (autenticado()) {
+      dashboard_ui
+    } else {
+      login_ui
+    }
+  })
+  
+  observeEvent(input$btn_login, {
+    if (!is.null(input$senha_login) && input$senha_login == SENHA_DASHBOARD) {
+      autenticado(TRUE)
+      output$login_erro <- renderUI(NULL)
+    } else {
+      output$login_erro <- renderUI({
+        div(class = "login-erro", "Senha incorreta. Tente novamente.")
+      })
+    }
+  })
+  
+  observeEvent(input$btn_logout, {
+    autenticado(FALSE)
+    updateTextInput(session, "senha_login", value = "")
+  })
+  
+  # ============================================
+  # REGISTROS GERAIS — CARDS
   # ============================================
   
+  output$cards_registros <- renderUI({
+    # Mapeamento: categoria -> ícone FontAwesome
+    # Nota: "Total original" do CSV será exibido como "Total Deduplicado"
+    icone_map <- list(
+      "Total original"                = "filter",
+      "Total aldeados"                = "map-marker-alt",
+      "Somente ativos (aldeados)"     = "clipboard-check",
+      "Somente indígenas (aldeados)"  = "feather-alt",
+      "Ativos e indígenas (aldeados)" = "users"
+    )
+    
+    # Primeiro card: Total Original (valor externo)
+    card_total_original <- {
+      valor <- format(total_original_externo, big.mark = ".", decimal.mark = ",")
+      percent_dedup <- sprintf("%.2f", 100 * registros$frequencias[registros$categorias == "Total original"] / total_original_externo)
+      
+      div(class = "registro-card",
+          div(class = "card-icon", tags$i(class = "fas fa-database")),
+          div(class = "card-label", "Total Original"),
+          div(class = "card-valor", paste0("N = ", valor)),
+          div(class = "card-percentual", paste0("Base (100%)") )
+      )
+    }
+    
+    # Cards restantes: do CSV
+    cards_csv <- registros %>%
+      filter(categorias %in% categorias_cards) %>%
+      pull(categorias) %>%
+      lapply(function(cat) {
+        linha <- registros %>% filter(categorias == cat)
+        valor <- format(linha$frequencias, big.mark = ".", decimal.mark = ",")
+        
+        # Se for "Total original", renomear para "Total Deduplicado"
+        label <- ifelse(cat == "Total original", "Total Deduplicado", cat)
+        icone <- icone_map[[cat]] %||% "circle"
+        
+        # Percentual: do CSV (baseado no total deduplicado)
+        percent <- sprintf("%.2f", linha$percentual_total_original)
+        
+        div(class = "registro-card",
+            div(class = "card-icon", tags$i(class = paste0("fas fa-", icone))),
+            div(class = "card-label", label),
+            div(class = "card-valor", paste0("N = ", valor)),
+            div(class = "card-percentual", paste0(percent, "%"))
+        )
+      })
+    
+    # Combina: Total Original primeiro, depois os demais
+    cards <- c(list(card_total_original), cards_csv)
+    
+    # Montar a grid: 5 cards em uma linha responsiva
+    tagList(
+      div(
+        style = "display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; padding: 10px 0;",
+        cards
+      )
+    )
+  })
+  
+  # ============================================
+  # REGISTROS GERAIS — TABELA (sem os cards)
+  # ============================================
   output$registros_table <- renderDT({
-    datatable(registros,
+    datatable(registros_tabela,
       options = list(
         language = list(url = '//cdn.datatables.net/plug-ins/1.13.4/i18n/pt-BR.json'),
         dom = 'Bfrtip',
         buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
-        scrollY = "300px",
-        scrollCollapse = TRUE,
         scrollX = TRUE,
         paging = FALSE
       ),
-      extensions = c('Buttons', 'Scroller'),
+      extensions = c('Buttons'),
       rownames = FALSE,
-      colnames = c("Categorias", "Frequências")
+      colnames = c("Categorias", "Frequências", "% do Total Original")
     ) %>%
-      formatRound(columns = 2, digits = 0, mark = ".")
+      formatRound(columns = 2, digits = 0, mark = ".") %>%
+      formatRound(columns = 3, digits = 2, mark = ".") %>%
+      formatStyle(
+        "categorias",
+        target = "row",
+        backgroundColor = styleEqual(categorias_aldeados[!categorias_aldeados %in% categorias_cards],
+                                      rep("#eaf3ff", sum(!categorias_aldeados %in% categorias_cards)))
+      )
   })
   
   # ============================================

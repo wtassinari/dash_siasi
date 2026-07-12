@@ -1,5 +1,5 @@
 # ============================================
-# DASHBOARD SIASI - VERSÃO 5 (COM ABA REGISTROS E LOGIN)
+# DASHBOARD SIASI - VERSÃO 6 (CARDS + REGISTROS + LOGIN)
 # ============================================
 
 suppressWarnings({
@@ -14,10 +14,15 @@ suppressWarnings({
 # ============================================
 # CONFIGURAÇÃO DE SENHA
 # ============================================
-# Dica: em produção, evite deixar a senha "hardcoded" no código.
-# Prefira algo como: SENHA_DASHBOARD <- Sys.getenv("SENHA_DASHBOARD")
-# e definir a variável de ambiente no servidor onde o app roda.
-SENHA_DASHBOARD <- "siasi2026#"
+# A senha é lida de uma variável de ambiente, NUNCA fica escrita no código
+# (importante já que o app.R vai para o GitHub).
+# No Posit Connect: Configurações do app > Vars > adicionar SENHA_DASHBOARD.
+# Localmente (RStudio): defina em um arquivo .Renviron (que NÃO deve ir pro Git).
+SENHA_DASHBOARD <- Sys.getenv("SENHA_DASHBOARD", unset = "")
+
+if (SENHA_DASHBOARD == "") {
+  stop("A variável de ambiente SENHA_DASHBOARD não foi definida. Configure-a no Posit Connect (Vars) antes de publicar/rodar o app.")
+}
 
 # ============================================
 # CARREGAR E PREPARAR DADOS
@@ -25,21 +30,47 @@ SENHA_DASHBOARD <- "siasi2026#"
 
 # Registros Gerais
 registros <- read.csv("registros.csv", sep=";", stringsAsFactors = FALSE)
-names(registros) <- c("categorias", "frequencias")
+names(registros) <- c("categorias", "frequencias", "percentual_total_original")
 registros$frequencias <- as.numeric(registros$frequencias)
+registros$percentual_total_original <- as.numeric(registros$percentual_total_original)
+
+# Linhas que representam o filtro "Apenas Aldeados" (para destacar na tabela)
+categorias_aldeados <- registros$categorias[grepl("aldeados", registros$categorias, ignore.case = TRUE)]
+
+# --- Valor externo: Total Original (não deduplicado) ---
+total_original_externo <- 1394825
+
+# --- Categorias que serão extraídas para os cards (marcadas em vermelho) ---
+categorias_cards <- c(
+  "Total original",
+  "Total aldeados",
+  "Somente ativos (aldeados)",
+  "Somente indígenas (aldeados)",
+  "Ativos e indígenas (aldeados)"
+)
+
+# Tabela filtrada sem os registros que viraram cards
+registros_tabela <- registros %>%
+  filter(!categorias %in% categorias_cards)
 
 # Dados de Nascimentos por Ano (com todas as categorias)
-anonasc <- read.csv("frequencia_ano_nascimento.csv", sep=";")
+anonasc <- read.csv("frequencia_ano_nascimento.csv", sep=";", stringsAsFactors = FALSE)
 anonasc_calc <- anonasc %>%
   mutate(
+    ano_categoria = as.character(ano_categoria),
     diferenca = somente_ativos - ativos_e_indigenas,
     perc_col_ativos_indigenas = round((ativos_e_indigenas / sum(ativos_e_indigenas, na.rm = TRUE)) * 100, 2),
     perc_col_somente_ativos = round((somente_ativos / sum(somente_ativos, na.rm = TRUE)) * 100, 2)
   )
 
+# Tabela filtrada: remove "Sem informação" e substitui "Até 2000" por "< 2000"
+anonasc_table <- anonasc_calc %>%
+  filter(ano_categoria != "Sem informação") %>%
+  mutate(ano_categoria = ifelse(ano_categoria == "Até 2000", "< 2000", ano_categoria))
+
 # Dados de Nascimentos por DSEI
 nascimentos_dsei <- read.csv("frequencia_ano_nascimento_dsei.csv", sep=";", stringsAsFactors = FALSE)
-names(nascimentos_dsei) <- c("ds_dsei", "co_dsei_polo", "ano_nascimento", 
+names(nascimentos_dsei) <- c("ds_dsei", "co_dsei_polo", "ano_nascimento",
                              "frequencia_ativos", "frequencia_ativos_indigenas")
 
 nascimentos_dsei_calc <- nascimentos_dsei %>%
@@ -67,7 +98,7 @@ nascimentos_dsei_calc <- nascimentos_dsei %>%
 
 # Dados de Óbitos por Ano
 obitos_ano <- read.csv("frequencia_ano_obitos.csv", sep=";", stringsAsFactors = FALSE)
-names(obitos_ano) <- c("ano_obito", "frequencia_obitos", "percentual", 
+names(obitos_ano) <- c("ano_obito", "frequencia_obitos", "percentual",
                        "frequencia_acumulada", "percentual_acumulado")
 
 obitos_ano_calc <- obitos_ano %>%
@@ -79,8 +110,8 @@ obitos_ano_calc <- obitos_ano %>%
 
 # Dados de Óbitos por DSEI
 obitos_dsei <- read.csv("frequencia_ano_obitos_dsei.csv", sep=";", stringsAsFactors = FALSE)
-names(obitos_dsei) <- c("ds_dsei", "co_dsei_polo", "ano_obito", 
-                        "frequencia_simples", "percentual", 
+names(obitos_dsei) <- c("ds_dsei", "co_dsei_polo", "ano_obito",
+                        "frequencia_simples", "percentual",
                         "frequencia_acumulada", "percentual_acumulado")
 
 obitos_dsei_clean <- obitos_dsei %>%
@@ -194,6 +225,45 @@ dashboard_ui <- dashboardPage(
         .content-wrapper, .right-side { background-color: #f4f4f4; }
         .box { border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         .dataTables_wrapper { font-size: 12px; }
+        
+        /* Estilos personalizados para os cards de registros */
+        .registro-card {
+          background: #ffffff;
+          border-radius: 12px;
+          padding: 20px 18px;
+          text-align: center;
+          box-shadow: 0 3px 12px rgba(0,0,0,0.1);
+          border-top: 4px solid #e74c3c;
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .registro-card:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 5px 18px rgba(0,0,0,0.15);
+        }
+        .registro-card .card-icon {
+          font-size: 36px;
+          color: #e74c3c;
+          margin-bottom: 8px;
+        }
+        .registro-card .card-label {
+          font-size: 13px;
+          color: #555;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          margin-bottom: 6px;
+        }
+        .registro-card .card-valor {
+          font-size: 28px;
+          font-weight: 700;
+          color: #2c3e50;
+          margin-bottom: 4px;
+        }
+        .registro-card .card-percentual {
+          font-size: 15px;
+          color: #e74c3c;
+          font-weight: 600;
+        }
       "))
     ),
     
@@ -202,8 +272,13 @@ dashboard_ui <- dashboardPage(
       # ABA: REGISTROS GERAIS
       # ============================================
       tabItem(tabName = "registros",
+              # --- CARDS COM OS REGISTROS DESTACADOS ---
               fluidRow(
-                box(title = "Registros Gerais da Base de Dados", status = "primary", solidHeader = TRUE, width = 12,
+                htmlOutput("cards_registros")
+              ),
+              # --- TABELA COM OS DEMAIS REGISTROS ---
+              fluidRow(
+                box(title = "Outros Registros da Base de Dados", status = "primary", solidHeader = TRUE, width = 12,
                     DTOutput("registros_table"))
               )
       ),
@@ -343,25 +418,92 @@ server <- function(input, output, session) {
   })
   
   # ============================================
-  # REGISTROS GERAIS
+  # REGISTROS GERAIS — CARDS
   # ============================================
   
+  output$cards_registros <- renderUI({
+    # Mapeamento: categoria -> ícone FontAwesome
+    # Nota: "Total original" do CSV será exibido como "Total Deduplicado"
+    icone_map <- list(
+      "Total original"                = "filter",
+      "Total aldeados"                = "map-marker-alt",
+      "Somente ativos (aldeados)"     = "clipboard-check",
+      "Somente indígenas (aldeados)"  = "feather-alt",
+      "Ativos e indígenas (aldeados)" = "users"
+    )
+    
+    # Primeiro card: Total Original (valor externo)
+    card_total_original <- {
+      valor <- format(total_original_externo, big.mark = ".", decimal.mark = ",")
+      percent_dedup <- sprintf("%.2f", 100 * registros$frequencias[registros$categorias == "Total original"] / total_original_externo)
+      
+      div(class = "registro-card",
+          div(class = "card-icon", tags$i(class = "fas fa-database")),
+          div(class = "card-label", "Total Original"),
+          div(class = "card-valor", paste0("N = ", valor)),
+          div(class = "card-percentual", paste0("Base (100%)") )
+      )
+    }
+    
+    # Cards restantes: do CSV
+    cards_csv <- registros %>%
+      filter(categorias %in% categorias_cards) %>%
+      pull(categorias) %>%
+      lapply(function(cat) {
+        linha <- registros %>% filter(categorias == cat)
+        valor <- format(linha$frequencias, big.mark = ".", decimal.mark = ",")
+        
+        # Se for "Total original", renomear para "Total Deduplicado"
+        label <- ifelse(cat == "Total original", "Total Deduplicado", cat)
+        icone <- icone_map[[cat]] %||% "circle"
+        
+        # Percentual: do CSV (baseado no total deduplicado)
+        percent <- sprintf("%.2f", linha$percentual_total_original)
+        
+        div(class = "registro-card",
+            div(class = "card-icon", tags$i(class = paste0("fas fa-", icone))),
+            div(class = "card-label", label),
+            div(class = "card-valor", paste0("N = ", valor)),
+            div(class = "card-percentual", paste0(percent, "%"))
+        )
+      })
+    
+    # Combina: Total Original primeiro, depois os demais
+    cards <- c(list(card_total_original), cards_csv)
+    
+    # Montar a grid: 5 cards em uma linha responsiva
+    tagList(
+      div(
+        style = "display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; padding: 10px 0;",
+        cards
+      )
+    )
+  })
+  
+  # ============================================
+  # REGISTROS GERAIS — TABELA (sem os cards)
+  # ============================================
   output$registros_table <- renderDT({
-    datatable(registros,
+    datatable(registros_tabela,
       options = list(
         language = list(url = '//cdn.datatables.net/plug-ins/1.13.4/i18n/pt-BR.json'),
         dom = 'Bfrtip',
         buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
-        scrollY = "300px",
-        scrollCollapse = TRUE,
         scrollX = TRUE,
         paging = FALSE
       ),
-      extensions = c('Buttons', 'Scroller'),
+      extensions = c('Buttons'),
       rownames = FALSE,
-      colnames = c("Categorias", "Frequências")
+      colnames = c("Categorias", "Frequências", "% do Total Original")
     ) %>%
-      formatRound(columns = 2, digits = 0, mark = ".")
+      formatRound(columns = 2, digits = 0, mark = ".") %>%
+      formatRound(columns = 3, digits = 2, mark = ".") %>%
+      formatStyle(
+        "categorias",
+        target = "row",
+        backgroundColor = styleEqual(categorias_aldeados[!categorias_aldeados %in% categorias_cards],
+                                      rep("#eaf3ff", sum(!categorias_aldeados %in% categorias_cards)))
+      )
   })
   
   # ============================================
@@ -369,7 +511,7 @@ server <- function(input, output, session) {
   # ============================================
   
   output$nascimentos_ano_table <- renderDT({
-    datatable(anonasc_calc,
+    datatable(anonasc_table,
       options = list(
         language = list(url = '//cdn.datatables.net/plug-ins/1.13.4/i18n/pt-BR.json'),
         dom = 'Bfrtip',
@@ -385,7 +527,7 @@ server <- function(input, output, session) {
     ) %>%
       formatRound(columns = c(1:3), digits = 0, mark = ".") %>%
       formatRound(columns = c(4:5), digits = 2) %>%
-      formatStyle(1, target = 'row', backgroundColor = styleEqual(c("Sem informação", "Até 2000"), c('#ffcccc', '#ffcccc')))
+      formatStyle(1, target = 'row', backgroundColor = styleEqual(c("Sem informação", "< 2000"), c('#ffcccc', '#ffcccc')))
   })
   
   output$nascimentos_ano_plot <- renderPlotly({
@@ -403,7 +545,13 @@ server <- function(input, output, session) {
                 line = list(color = '#3498db', width = 2),
                 marker = list(color = '#3498db', size = 6)) %>%
       layout(title = "Nascimentos: Ativos e Indígenas vs Somente Ativos",
-             xaxis = list(title = "Ano", dtick = 2),
+             xaxis = list(
+               title = "Ano",
+               tickangle = 45,
+               tickvals = anonasc_numerico$ano_categoria,
+               ticktext = as.character(as.integer(anonasc_numerico$ano_categoria)),
+               tickfont = list(size = 9)
+             ),
              yaxis = list(title = "Registros", tickformat = ",.0f"),
              legend = list(orientation = "h", y = -0.15),
              hovermode = "x unified")
@@ -431,8 +579,33 @@ server <- function(input, output, session) {
       return(NULL)
     }
     
+    # Consolidar anos < 2000 em "< 2000" e ordenar corretamente
     nascimentos_dsei_resumido <- nascimentos_dsei_calc %>%
       filter(ds_dsei == dsei_selecionado) %>%
+      mutate(ano_nascimento = ifelse(ano_num < 2000, "< 2000", ano_nascimento)) %>%
+      group_by(ds_dsei, ano_nascimento) %>%
+      summarise(
+        frequencia_ativos_indigenas = sum(frequencia_ativos_indigenas, na.rm = TRUE),
+        frequencia_ativos = sum(frequencia_ativos, na.rm = TRUE),
+        .groups = "drop"
+      ) %>%
+      mutate(
+        diferenca_nao_indigenas = frequencia_ativos - frequencia_ativos_indigenas,
+        ordem = ifelse(ano_nascimento == "< 2000", 0, as.numeric(ano_nascimento))
+      ) %>%
+      group_by(ds_dsei) %>%
+      mutate(
+        perc_total_ativ_indig = round(100 * frequencia_ativos_indigenas / sum(frequencia_ativos_indigenas, na.rm = TRUE), 2),
+        perc_total_ativos = round(100 * frequencia_ativos / sum(frequencia_ativos, na.rm = TRUE), 2)
+      ) %>%
+      ungroup() %>%
+      arrange(ordem) %>%
+      mutate(
+        crescimento_abs_ativos = frequencia_ativos - lag(frequencia_ativos),
+        crescimento_abs_ativ_indig = frequencia_ativos_indigenas - lag(frequencia_ativos_indigenas),
+        crescimento_perc_ativos = round((frequencia_ativos - lag(frequencia_ativos)) / lag(frequencia_ativos) * 100, 2),
+        crescimento_perc_ativ_indig = round((frequencia_ativos_indigenas - lag(frequencia_ativos_indigenas)) / lag(frequencia_ativos_indigenas) * 100, 2)
+      ) %>%
       select(ds_dsei, ano_nascimento, frequencia_ativos_indigenas, frequencia_ativos,
              diferenca_nao_indigenas, perc_total_ativ_indig, perc_total_ativos,
              crescimento_perc_ativos, crescimento_perc_ativ_indig)
@@ -452,7 +625,8 @@ server <- function(input, output, session) {
       colnames = c("DSEI", "Ano", "Ativ. Indig.", "Ativos", "Diferença", "% Indig.", "% Ativos", "Cresc. % Ativos", "Cresc. % Indig.")
     ) %>%
       formatRound(columns = c(3:5), digits = 0, mark = ".") %>%
-      formatRound(columns = c(6:9), digits = 2)
+      formatRound(columns = c(6:9), digits = 2) %>%
+      formatStyle(2, target = 'row', backgroundColor = styleEqual("< 2000", '#ffcccc'))
   })
   
   # Gráfico DSEI - Nascimentos (REATIVO)
