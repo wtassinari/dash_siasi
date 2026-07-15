@@ -54,13 +54,19 @@ registros_tabela <- registros %>%
   filter(!categorias %in% categorias_cards)
 
 # Dados de Nascimentos por Ano (com todas as categorias)
-anonasc <- read.csv("frequencia_ano_nascimento.csv", sep=";")
+anonasc <- read.csv("frequencia_ano_nascimento.csv", sep=";", stringsAsFactors = FALSE)
 anonasc_calc <- anonasc %>%
   mutate(
+    ano_categoria = as.character(ano_categoria),
     diferenca = somente_ativos - ativos_e_indigenas,
     perc_col_ativos_indigenas = round((ativos_e_indigenas / sum(ativos_e_indigenas, na.rm = TRUE)) * 100, 2),
     perc_col_somente_ativos = round((somente_ativos / sum(somente_ativos, na.rm = TRUE)) * 100, 2)
   )
+
+# Tabela filtrada: remove "Sem informação" e substitui "Até 2000" por "< 2000"
+anonasc_table <- anonasc_calc %>%
+  filter(ano_categoria != "Sem informação") %>%
+  mutate(ano_categoria = ifelse(ano_categoria == "Até 2000", "< 2000", ano_categoria))
 
 # Dados de Nascimentos por DSEI
 nascimentos_dsei <- read.csv("frequencia_ano_nascimento_dsei.csv", sep=";", stringsAsFactors = FALSE)
@@ -90,42 +96,58 @@ nascimentos_dsei_calc <- nascimentos_dsei %>%
   ) %>%
   ungroup()
 
-# Dados de Óbitos por Ano
+# ============================================
+# DADOS DE ÓBITOS POR ANO (ADAPTADO)
+# ============================================
 obitos_ano <- read.csv("frequencia_ano_obitos.csv", sep=";", stringsAsFactors = FALSE)
-names(obitos_ano) <- c("ano_obito", "frequencia_obitos", "percentual",
-                       "frequencia_acumulada", "percentual_acumulado")
+names(obitos_ano) <- c("ano_categoria", "obitos_gerais", "obitos_indigenas")
 
 obitos_ano_calc <- obitos_ano %>%
   mutate(
-    frequencia_obitos = as.numeric(gsub(",", ".", gsub("\\.", "", frequencia_obitos))),
-    percentual = as.numeric(gsub(",", ".", gsub("\\.", "", percentual)))
+    ano_categoria = as.character(ano_categoria),
+    obitos_gerais = as.numeric(gsub(",", ".", gsub("\\.", "", obitos_gerais))),
+    obitos_indigenas = as.numeric(gsub(",", ".", gsub("\\.", "", obitos_indigenas)))
   ) %>%
-  filter(!is.na(frequencia_obitos))
+  filter(!is.na(obitos_gerais), !is.na(obitos_indigenas)) %>%
+  mutate(
+    diferenca = obitos_gerais - obitos_indigenas,
+    perc_col_obitos_indigenas = round((obitos_indigenas / sum(obitos_indigenas, na.rm = TRUE)) * 100, 2),
+    perc_col_obitos_gerais = round((obitos_gerais / sum(obitos_gerais, na.rm = TRUE)) * 100, 2)
+  )
 
-# Dados de Óbitos por DSEI
+# Tabela filtrada: remove "Sem informação" e substitui "Antes de 2000" por "< 2000"
+obitos_ano_table <- obitos_ano_calc %>%
+  filter(ano_categoria != "Sem informação") %>%
+  mutate(ano_categoria = ifelse(ano_categoria == "Antes de 2000", "< 2000", ano_categoria))
+
+# ============================================
+# DADOS DE ÓBITOS POR DSEI (ADAPTADO)
+# ============================================
 obitos_dsei <- read.csv("frequencia_ano_obitos_dsei.csv", sep=";", stringsAsFactors = FALSE)
 names(obitos_dsei) <- c("ds_dsei", "co_dsei_polo", "ano_obito",
-                        "frequencia_simples", "percentual",
-                        "frequencia_acumulada", "percentual_acumulado")
+                        "frequencia_ativos", "frequencia_indigenas",
+                        "percentual_ativos", "frequencia_acumulada_ativos", "percentual_acumulado_ativos")
 
 obitos_dsei_clean <- obitos_dsei %>%
   mutate(
-    frequencia_simples = as.numeric(gsub(",", ".", gsub("\\.", "", frequencia_simples))),
-    percentual = as.numeric(gsub(",", ".", gsub("\\.", "", percentual))),
-    frequencia_acumulada = as.numeric(gsub(",", ".", gsub("\\.", "", frequencia_acumulada))),
-    percentual_acumulado = as.numeric(gsub(",", ".", gsub("\\.", "", percentual_acumulado))),
-    ordem_ano = if_else(ano_obito == "Antes de 2000", 0, suppressWarnings(as.numeric(ano_obito)))
+    frequencia_ativos = as.numeric(gsub(",", ".", gsub("\\.", "", frequencia_ativos))),
+    frequencia_indigenas = as.numeric(gsub(",", ".", gsub("\\.", "", frequencia_indigenas))),
+    ano_num = if_else(ano_obito == "Antes de 2000", 0, suppressWarnings(as.numeric(ano_obito)))
   ) %>%
-  filter(!is.na(frequencia_simples), !is.na(ds_dsei), ds_dsei != "")
+  filter(!is.na(frequencia_ativos), !is.na(frequencia_indigenas), !is.na(ds_dsei), ds_dsei != "")
 
 obitos_dsei_calc <- obitos_dsei_clean %>%
-  filter(!is.na(ordem_ano)) %>%
-  arrange(ds_dsei, co_dsei_polo, ordem_ano) %>%
+  filter(!is.na(ano_num)) %>%
+  arrange(ds_dsei, co_dsei_polo, ano_num) %>%
   group_by(ds_dsei, co_dsei_polo) %>%
   mutate(
-    perc_dsei = round((frequencia_simples / sum(frequencia_simples, na.rm = TRUE)) * 100, 2),
-    crescimento_abs = frequencia_simples - lag(frequencia_simples),
-    crescimento_perc = round((frequencia_simples - lag(frequencia_simples)) / lag(frequencia_simples) * 100, 2)
+    diferenca_nao_indigenas = frequencia_ativos - frequencia_indigenas,
+    perc_total_ativos = round(100 * frequencia_ativos / sum(frequencia_ativos, na.rm = TRUE), 2),
+    perc_total_indigenas = round(100 * frequencia_indigenas / sum(frequencia_indigenas, na.rm = TRUE), 2),
+    crescimento_abs_ativos = frequencia_ativos - lag(frequencia_ativos),
+    crescimento_abs_indigenas = frequencia_indigenas - lag(frequencia_indigenas),
+    crescimento_perc_ativos = round((frequencia_ativos - lag(frequencia_ativos)) / lag(frequencia_ativos) * 100, 2),
+    crescimento_perc_indigenas = round((frequencia_indigenas - lag(frequencia_indigenas)) / lag(frequencia_indigenas) * 100, 2)
   ) %>%
   ungroup()
 
@@ -309,7 +331,7 @@ dashboard_ui <- dashboardPage(
       ),
       
       # ============================================
-      # ABA: ÓBITOS
+      # ABA: ÓBITOS (ADAPTADA)
       # ============================================
       tabItem(tabName = "obitos",
               # Tabela Anual
@@ -505,7 +527,7 @@ server <- function(input, output, session) {
   # ============================================
   
   output$nascimentos_ano_table <- renderDT({
-    datatable(anonasc_calc,
+    datatable(anonasc_table,
       options = list(
         language = list(url = '//cdn.datatables.net/plug-ins/1.13.4/i18n/pt-BR.json'),
         dom = 'Bfrtip',
@@ -521,7 +543,7 @@ server <- function(input, output, session) {
     ) %>%
       formatRound(columns = c(1:3), digits = 0, mark = ".") %>%
       formatRound(columns = c(4:5), digits = 2) %>%
-      formatStyle(1, target = 'row', backgroundColor = styleEqual(c("Sem informação", "Até 2000"), c('#ffcccc', '#ffcccc')))
+      formatStyle(1, target = 'row', backgroundColor = styleEqual(c("Sem informação", "< 2000"), c('#ffcccc', '#ffcccc')))
   })
   
   output$nascimentos_ano_plot <- renderPlotly({
@@ -539,7 +561,13 @@ server <- function(input, output, session) {
                 line = list(color = '#3498db', width = 2),
                 marker = list(color = '#3498db', size = 6)) %>%
       layout(title = "Nascimentos: Ativos e Indígenas vs Somente Ativos",
-             xaxis = list(title = "Ano", dtick = 2),
+             xaxis = list(
+               title = "Ano",
+               tickangle = 45,
+               tickvals = anonasc_numerico$ano_categoria,
+               ticktext = as.character(as.integer(anonasc_numerico$ano_categoria)),
+               tickfont = list(size = 9)
+             ),
              yaxis = list(title = "Registros", tickformat = ",.0f"),
              legend = list(orientation = "h", y = -0.15),
              hovermode = "x unified")
@@ -567,8 +595,33 @@ server <- function(input, output, session) {
       return(NULL)
     }
     
+    # Consolidar anos < 2000 em "< 2000" e ordenar corretamente
     nascimentos_dsei_resumido <- nascimentos_dsei_calc %>%
       filter(ds_dsei == dsei_selecionado) %>%
+      mutate(ano_nascimento = ifelse(ano_num < 2000, "< 2000", ano_nascimento)) %>%
+      group_by(ds_dsei, ano_nascimento) %>%
+      summarise(
+        frequencia_ativos_indigenas = sum(frequencia_ativos_indigenas, na.rm = TRUE),
+        frequencia_ativos = sum(frequencia_ativos, na.rm = TRUE),
+        .groups = "drop"
+      ) %>%
+      mutate(
+        diferenca_nao_indigenas = frequencia_ativos - frequencia_ativos_indigenas,
+        ordem = ifelse(ano_nascimento == "< 2000", 0, as.numeric(ano_nascimento))
+      ) %>%
+      group_by(ds_dsei) %>%
+      mutate(
+        perc_total_ativ_indig = round(100 * frequencia_ativos_indigenas / sum(frequencia_ativos_indigenas, na.rm = TRUE), 2),
+        perc_total_ativos = round(100 * frequencia_ativos / sum(frequencia_ativos, na.rm = TRUE), 2)
+      ) %>%
+      ungroup() %>%
+      arrange(ordem) %>%
+      mutate(
+        crescimento_abs_ativos = frequencia_ativos - lag(frequencia_ativos),
+        crescimento_abs_ativ_indig = frequencia_ativos_indigenas - lag(frequencia_ativos_indigenas),
+        crescimento_perc_ativos = round((frequencia_ativos - lag(frequencia_ativos)) / lag(frequencia_ativos) * 100, 2),
+        crescimento_perc_ativ_indig = round((frequencia_ativos_indigenas - lag(frequencia_ativos_indigenas)) / lag(frequencia_ativos_indigenas) * 100, 2)
+      ) %>%
       select(ds_dsei, ano_nascimento, frequencia_ativos_indigenas, frequencia_ativos,
              diferenca_nao_indigenas, perc_total_ativ_indig, perc_total_ativos,
              crescimento_perc_ativos, crescimento_perc_ativ_indig)
@@ -588,7 +641,8 @@ server <- function(input, output, session) {
       colnames = c("DSEI", "Ano", "Ativ. Indig.", "Ativos", "Diferença", "% Indig.", "% Ativos", "Cresc. % Ativos", "Cresc. % Indig.")
     ) %>%
       formatRound(columns = c(3:5), digits = 0, mark = ".") %>%
-      formatRound(columns = c(6:9), digits = 2)
+      formatRound(columns = c(6:9), digits = 2) %>%
+      formatStyle(2, target = 'row', backgroundColor = styleEqual("< 2000", '#ffcccc'))
   })
   
   # Gráfico DSEI - Nascimentos (REATIVO)
@@ -623,11 +677,11 @@ server <- function(input, output, session) {
   })
   
   # ============================================
-  # ÓBITOS
+  # ÓBITOS (ADAPTADO)
   # ============================================
   
   output$obitos_ano_table <- renderDT({
-    datatable(obitos_ano_calc %>% select(ano_obito, frequencia_obitos, percentual),
+    datatable(obitos_ano_table,
       options = list(
         language = list(url = '//cdn.datatables.net/plug-ins/1.13.4/i18n/pt-BR.json'),
         dom = 'Bfrtip',
@@ -639,26 +693,38 @@ server <- function(input, output, session) {
       ),
       extensions = c('Buttons', 'Scroller'),
       rownames = FALSE,
-      colnames = c("Ano", "Óbitos", "% Total")
+      colnames = c("Ano", "Indígenas", "Gerais", "Diferença", "% Indígenas", "% Gerais")
     ) %>%
-      formatRound(columns = c(2), digits = 0, mark = ".") %>%
-      formatRound(columns = c(3), digits = 2)
+      formatRound(columns = c(2:4), digits = 0, mark = ".") %>%
+      formatRound(columns = c(5:6), digits = 2) %>%
+      formatStyle(1, target = 'row', backgroundColor = styleEqual("< 2000", '#ffcccc'))
   })
   
   output$obitos_ano_plot <- renderPlotly({
-    obitos_filtrado <- obitos_ano_calc %>%
-      filter(ano_obito != "Antes de 2000") %>%
-      mutate(ano_obito = as.numeric(ano_obito)) %>%
-      arrange(ano_obito)
+    obitos_numerico <- obitos_ano_calc %>%
+      filter(ano_categoria != "< 2000") %>%
+      mutate(ano_categoria = as.numeric(ano_categoria)) %>%
+      arrange(ano_categoria)
     
-    plot_ly(data = obitos_filtrado) %>%
-      add_trace(x = ~ano_obito, y = ~frequencia_obitos, name = "Óbitos",
+    plot_ly(data = obitos_numerico) %>%
+      add_trace(x = ~ano_categoria, y = ~obitos_indigenas, name = "Indígenas",
                 type = "scatter", mode = "lines+markers",
                 line = list(color = '#e74c3c', width = 2),
                 marker = list(color = '#e74c3c', size = 6)) %>%
-      layout(title = "Óbitos por Ano",
-             xaxis = list(title = "Ano", dtick = 1),
+      add_trace(x = ~ano_categoria, y = ~obitos_gerais, name = "Gerais",
+                type = "scatter", mode = "lines+markers",
+                line = list(color = '#3498db', width = 2),
+                marker = list(color = '#3498db', size = 6)) %>%
+      layout(title = "Óbitos: Indígenas vs Gerais",
+             xaxis = list(
+               title = "Ano",
+               tickangle = 45,
+               tickvals = obitos_numerico$ano_categoria,
+               ticktext = as.character(as.integer(obitos_numerico$ano_categoria)),
+               tickfont = list(size = 9)
+             ),
              yaxis = list(title = "Óbitos", tickformat = ",.0f"),
+             legend = list(orientation = "h", y = -0.15),
              hovermode = "x unified")
   })
   
@@ -675,7 +741,7 @@ server <- function(input, output, session) {
                    options = list(placeholder = 'Digite para buscar'))
   })
   
-  # Tabela DSEI - Óbitos (REATIVA)
+  # Tabela DSEI - Óbitos (REATIVA - ADAPTADA)
   output$obitos_dsei_table <- renderDT({
     dsei_selecionado <- input$obitos_dsei_select
     
@@ -683,9 +749,36 @@ server <- function(input, output, session) {
       return(NULL)
     }
     
+    # Consolidar anos < 2000 em "< 2000" e ordenar corretamente
     obitos_dsei_resumido <- obitos_dsei_calc %>%
       filter(ds_dsei == dsei_selecionado) %>%
-      select(ds_dsei, ano_obito, frequencia_simples, perc_dsei, crescimento_abs, crescimento_perc)
+      mutate(ano_obito = ifelse(ano_num == 0, "< 2000", ano_obito)) %>%
+      group_by(ds_dsei, ano_obito) %>%
+      summarise(
+        frequencia_indigenas = sum(frequencia_indigenas, na.rm = TRUE),
+        frequencia_ativos = sum(frequencia_ativos, na.rm = TRUE),
+        .groups = "drop"
+      ) %>%
+      mutate(
+        diferenca_nao_indigenas = frequencia_ativos - frequencia_indigenas,
+        ordem = ifelse(ano_obito == "< 2000", 0, as.numeric(ano_obito))
+      ) %>%
+      group_by(ds_dsei) %>%
+      mutate(
+        perc_total_indigenas = round(100 * frequencia_indigenas / sum(frequencia_indigenas, na.rm = TRUE), 2),
+        perc_total_ativos = round(100 * frequencia_ativos / sum(frequencia_ativos, na.rm = TRUE), 2)
+      ) %>%
+      ungroup() %>%
+      arrange(ordem) %>%
+      mutate(
+        crescimento_abs_ativos = frequencia_ativos - lag(frequencia_ativos),
+        crescimento_abs_indigenas = frequencia_indigenas - lag(frequencia_indigenas),
+        crescimento_perc_ativos = round((frequencia_ativos - lag(frequencia_ativos)) / lag(frequencia_ativos) * 100, 2),
+        crescimento_perc_indigenas = round((frequencia_indigenas - lag(frequencia_indigenas)) / lag(frequencia_indigenas) * 100, 2)
+      ) %>%
+      select(ds_dsei, ano_obito, frequencia_indigenas, frequencia_ativos,
+             diferenca_nao_indigenas, perc_total_indigenas, perc_total_ativos,
+             crescimento_perc_ativos, crescimento_perc_indigenas)
     
     datatable(obitos_dsei_resumido,
       options = list(
@@ -699,13 +792,14 @@ server <- function(input, output, session) {
       ),
       extensions = c('Buttons', 'Scroller'),
       rownames = FALSE,
-      colnames = c("DSEI", "Ano", "Óbitos", "% DSEI", "Cresc. Abs.", "Cresc. %")
+      colnames = c("DSEI", "Ano", "Indígenas", "Gerais", "Diferença", "% Indígenas", "% Gerais", "Cresc. % Gerais", "Cresc. % Indígenas")
     ) %>%
-      formatRound(columns = c(3:4), digits = 0, mark = ".") %>%
-      formatRound(columns = c(5:6), digits = 2)
+      formatRound(columns = c(3:5), digits = 0, mark = ".") %>%
+      formatRound(columns = c(6:9), digits = 2) %>%
+      formatStyle(2, target = 'row', backgroundColor = styleEqual("< 2000", '#ffcccc'))
   })
   
-  # Gráfico DSEI - Óbitos (REATIVO)
+  # Gráfico DSEI - Óbitos (REATIVO - ADAPTADO)
   output$obitos_dsei_plot <- renderPlotly({
     dsei_selecionado <- input$obitos_dsei_select
     
@@ -714,20 +808,25 @@ server <- function(input, output, session) {
     }
     
     dados <- obitos_dsei_calc %>%
-      filter(ds_dsei == dsei_selecionado, !is.na(ordem_ano), ordem_ano > 0)
+      filter(ds_dsei == dsei_selecionado, !is.na(ano_num), ano_num > 0)
     
     if (nrow(dados) == 0) {
       return(plotly_empty() %>% layout(title = "Sem dados disponíveis"))
     }
     
     plot_ly(dados) %>%
-      add_trace(x = ~ordem_ano, y = ~frequencia_simples, name = "Óbitos",
+      add_trace(x = ~ano_num, y = ~frequencia_indigenas, name = "Indígenas",
                 type = "scatter", mode = "lines+markers",
-                line = list(color = '#e74c3c', width = 2),
+                line = list(color = '#2980b9', width = 2),
+                marker = list(size = 5)) %>%
+      add_trace(x = ~ano_num, y = ~frequencia_ativos, name = "Gerais",
+                type = "scatter", mode = "lines+markers",
+                line = list(color = '#e74c3c', width = 2, dash = "dash"),
                 marker = list(size = 5)) %>%
       layout(title = paste("Óbitos -", dsei_selecionado),
-             xaxis = list(title = "Ano", dtick = 1),
+             xaxis = list(title = "Ano", dtick = 5),
              yaxis = list(title = "Óbitos", tickformat = ",.0f"),
+             legend = list(orientation = "h", y = -0.15),
              hovermode = "x unified")
   })
   
