@@ -55,6 +55,12 @@ registros_tabela <- registros %>%
 
 # Dados de Nascimentos por Ano (com todas as categorias)
 anonasc <- read.csv("frequencia_ano_nascimento.csv", sep=";", stringsAsFactors = FALSE)
+anonasc <- anonasc %>%
+  mutate(
+    ano_categoria = as.character(ano_categoria),
+    ano_categoria = ifelse(ano_categoria == "Até 2000", "< 2000", ano_categoria)
+  )
+
 anonasc_calc <- anonasc %>%
   mutate(
     ano_categoria = as.character(ano_categoria),
@@ -63,10 +69,9 @@ anonasc_calc <- anonasc %>%
     perc_col_somente_ativos = round((somente_ativos / sum(somente_ativos, na.rm = TRUE)) * 100, 2)
   )
 
-# Tabela filtrada: remove "Sem informação" e substitui "Até 2000" por "< 2000"
+# Tabela filtrada: remove "Sem informação"
 anonasc_table <- anonasc_calc %>%
-  filter(ano_categoria != "Sem informação") %>%
-  mutate(ano_categoria = ifelse(ano_categoria == "Até 2000", "< 2000", ano_categoria))
+  filter(ano_categoria != "Sem informação")
 
 # Dados de Nascimentos por DSEI
 nascimentos_dsei <- read.csv("frequencia_ano_nascimento_dsei.csv", sep=";", stringsAsFactors = FALSE)
@@ -100,19 +105,19 @@ nascimentos_dsei_calc <- nascimentos_dsei %>%
 # DADOS DE ÓBITOS POR ANO (ADAPTADO)
 # ============================================
 obitos_ano <- read.csv("frequencia_ano_obitos.csv", sep=";", stringsAsFactors = FALSE)
-names(obitos_ano) <- c("ano_categoria", "obitos_gerais", "obitos_indigenas")
+names(obitos_ano) <- c("ano_categoria", "somente_ativos", "ativos_e_indigenas")
 
 obitos_ano_calc <- obitos_ano %>%
   mutate(
     ano_categoria = as.character(ano_categoria),
-    obitos_gerais = as.numeric(gsub(",", ".", gsub("\\.", "", obitos_gerais))),
-    obitos_indigenas = as.numeric(gsub(",", ".", gsub("\\.", "", obitos_indigenas)))
+    somente_ativos = as.numeric(gsub(",", ".", gsub("\\.", "", somente_ativos))),
+    ativos_e_indigenas = as.numeric(gsub(",", ".", gsub("\\.", "", ativos_e_indigenas)))
   ) %>%
-  filter(!is.na(obitos_gerais), !is.na(obitos_indigenas)) %>%
+  filter(!is.na(somente_ativos), !is.na(ativos_e_indigenas)) %>%
   mutate(
-    diferenca = obitos_gerais - obitos_indigenas,
-    perc_col_obitos_indigenas = round((obitos_indigenas / sum(obitos_indigenas, na.rm = TRUE)) * 100, 2),
-    perc_col_obitos_gerais = round((obitos_gerais / sum(obitos_gerais, na.rm = TRUE)) * 100, 2)
+    diferenca = somente_ativos - ativos_e_indigenas,
+    perc_col_ativos_e_indigenas = round((ativos_e_indigenas / sum(ativos_e_indigenas, na.rm = TRUE)) * 100, 2),
+    perc_col_somente_ativos = round((somente_ativos / sum(somente_ativos, na.rm = TRUE)) * 100, 2)
   )
 
 # Tabela filtrada: remove "Sem informação" e substitui "Antes de 2000" por "< 2000"
@@ -527,7 +532,11 @@ server <- function(input, output, session) {
   # ============================================
   
   output$nascimentos_ano_table <- renderDT({
-    datatable(anonasc_table,
+    # Manter a coluna como character para exibição correta de "< 2000"
+    tabela_display <- anonasc_table %>%
+      mutate(ano_categoria = as.character(ano_categoria))
+    
+    datatable(tabela_display,
       options = list(
         language = list(url = '//cdn.datatables.net/plug-ins/1.13.4/i18n/pt-BR.json'),
         dom = 'Bfrtip',
@@ -543,12 +552,12 @@ server <- function(input, output, session) {
     ) %>%
       formatRound(columns = c(1:3), digits = 0, mark = ".") %>%
       formatRound(columns = c(4:5), digits = 2) %>%
-      formatStyle(1, target = 'row', backgroundColor = styleEqual(c("Sem informação", "< 2000"), c('#ffcccc', '#ffcccc')))
+      formatStyle(1, target = 'row', backgroundColor = styleEqual("< 2000", '#ffcccc'))
   })
   
   output$nascimentos_ano_plot <- renderPlotly({
     anonasc_numerico <- anonasc %>%
-      filter(!ano_categoria %in% c("Sem informação", "Até 2000")) %>%
+      filter(ano_categoria != "< 2000") %>%
       mutate(ano_categoria = as.numeric(ano_categoria))
     
     plot_ly(data = anonasc_numerico) %>%
@@ -681,7 +690,11 @@ server <- function(input, output, session) {
   # ============================================
   
   output$obitos_ano_table <- renderDT({
-    datatable(obitos_ano_table,
+    # Reordenar colunas: Somente Ativos primeiro, depois Ativos e Indígenas
+    tabela_obitos <- obitos_ano_table %>%
+      select(ano_categoria, somente_ativos, ativos_e_indigenas, diferenca, perc_col_somente_ativos, perc_col_ativos_e_indigenas)
+    
+    datatable(tabela_obitos,
       options = list(
         language = list(url = '//cdn.datatables.net/plug-ins/1.13.4/i18n/pt-BR.json'),
         dom = 'Bfrtip',
@@ -693,7 +706,7 @@ server <- function(input, output, session) {
       ),
       extensions = c('Buttons', 'Scroller'),
       rownames = FALSE,
-      colnames = c("Ano", "Indígenas", "Gerais", "Diferença", "% Indígenas", "% Gerais")
+      colnames = c("Ano", "Somente Ativos", "Ativos e Indígenas", "Diferença", "% Só Ativos", "% Ativ. Indig.")
     ) %>%
       formatRound(columns = c(2:4), digits = 0, mark = ".") %>%
       formatRound(columns = c(5:6), digits = 2) %>%
@@ -707,15 +720,15 @@ server <- function(input, output, session) {
       arrange(ano_categoria)
     
     plot_ly(data = obitos_numerico) %>%
-      add_trace(x = ~ano_categoria, y = ~obitos_indigenas, name = "Indígenas",
-                type = "scatter", mode = "lines+markers",
-                line = list(color = '#e74c3c', width = 2),
-                marker = list(color = '#e74c3c', size = 6)) %>%
-      add_trace(x = ~ano_categoria, y = ~obitos_gerais, name = "Gerais",
+      add_trace(x = ~ano_categoria, y = ~somente_ativos, name = "Somente Ativos",
                 type = "scatter", mode = "lines+markers",
                 line = list(color = '#3498db', width = 2),
                 marker = list(color = '#3498db', size = 6)) %>%
-      layout(title = "Óbitos: Indígenas vs Gerais",
+      add_trace(x = ~ano_categoria, y = ~ativos_e_indigenas, name = "Ativos e Indígenas",
+                type = "scatter", mode = "lines+markers",
+                line = list(color = '#e74c3c', width = 2),
+                marker = list(color = '#e74c3c', size = 6)) %>%
+      layout(title = "Óbitos: Ativos e Indígenas vs Somente Ativos",
              xaxis = list(
                title = "Ano",
                tickangle = 45,
@@ -755,8 +768,8 @@ server <- function(input, output, session) {
       mutate(ano_obito = ifelse(ano_num == 0, "< 2000", ano_obito)) %>%
       group_by(ds_dsei, ano_obito) %>%
       summarise(
-        frequencia_indigenas = sum(frequencia_indigenas, na.rm = TRUE),
         frequencia_ativos = sum(frequencia_ativos, na.rm = TRUE),
+        frequencia_indigenas = sum(frequencia_indigenas, na.rm = TRUE),
         .groups = "drop"
       ) %>%
       mutate(
@@ -765,8 +778,8 @@ server <- function(input, output, session) {
       ) %>%
       group_by(ds_dsei) %>%
       mutate(
-        perc_total_indigenas = round(100 * frequencia_indigenas / sum(frequencia_indigenas, na.rm = TRUE), 2),
-        perc_total_ativos = round(100 * frequencia_ativos / sum(frequencia_ativos, na.rm = TRUE), 2)
+        perc_total_ativos = round(100 * frequencia_ativos / sum(frequencia_ativos, na.rm = TRUE), 2),
+        perc_total_indigenas = round(100 * frequencia_indigenas / sum(frequencia_indigenas, na.rm = TRUE), 2)
       ) %>%
       ungroup() %>%
       arrange(ordem) %>%
@@ -776,8 +789,8 @@ server <- function(input, output, session) {
         crescimento_perc_ativos = round((frequencia_ativos - lag(frequencia_ativos)) / lag(frequencia_ativos) * 100, 2),
         crescimento_perc_indigenas = round((frequencia_indigenas - lag(frequencia_indigenas)) / lag(frequencia_indigenas) * 100, 2)
       ) %>%
-      select(ds_dsei, ano_obito, frequencia_indigenas, frequencia_ativos,
-             diferenca_nao_indigenas, perc_total_indigenas, perc_total_ativos,
+      select(ds_dsei, ano_obito, frequencia_ativos, frequencia_indigenas,
+             diferenca_nao_indigenas, perc_total_ativos, perc_total_indigenas,
              crescimento_perc_ativos, crescimento_perc_indigenas)
     
     datatable(obitos_dsei_resumido,
@@ -792,7 +805,7 @@ server <- function(input, output, session) {
       ),
       extensions = c('Buttons', 'Scroller'),
       rownames = FALSE,
-      colnames = c("DSEI", "Ano", "Indígenas", "Gerais", "Diferença", "% Indígenas", "% Gerais", "Cresc. % Gerais", "Cresc. % Indígenas")
+      colnames = c("DSEI", "Ano", "Só Ativos", "Ativ. Indig.", "Diferença", "% Só Ativos", "% Ativ. Indig.", "Cresc. % Ativos", "Cresc. % Indig.")
     ) %>%
       formatRound(columns = c(3:5), digits = 0, mark = ".") %>%
       formatRound(columns = c(6:9), digits = 2) %>%
@@ -815,11 +828,11 @@ server <- function(input, output, session) {
     }
     
     plot_ly(dados) %>%
-      add_trace(x = ~ano_num, y = ~frequencia_indigenas, name = "Indígenas",
+      add_trace(x = ~ano_num, y = ~frequencia_indigenas, name = "Ativos e Indígenas",
                 type = "scatter", mode = "lines+markers",
                 line = list(color = '#2980b9', width = 2),
                 marker = list(size = 5)) %>%
-      add_trace(x = ~ano_num, y = ~frequencia_ativos, name = "Gerais",
+      add_trace(x = ~ano_num, y = ~frequencia_ativos, name = "Somente Ativos",
                 type = "scatter", mode = "lines+markers",
                 line = list(color = '#e74c3c', width = 2, dash = "dash"),
                 marker = list(size = 5)) %>%
