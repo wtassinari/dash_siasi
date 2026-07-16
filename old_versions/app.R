@@ -157,7 +157,7 @@ obitos_dsei_calc <- obitos_dsei_clean %>%
   ungroup()
 
 # Dados de População por Ano
-populacao <- read.csv("populacao_por_ano.csv", sep=";")
+populacao <- read.csv("populacao2_por_ano.csv", sep=";")
 names(populacao) <- c("ano", "ativos_e_indigenas", "somente_ativos")
 
 populacao_calc <- populacao %>%
@@ -173,7 +173,7 @@ populacao_calc <- populacao %>%
   )
 
 # Dados de População por DSEI
-populacao_dsei <- read.csv("populacao_por_ano_dsei_com_seq.csv", sep=";")
+populacao_dsei <- read.csv("populacao2_por_ano_dsei.csv", sep=";")
 names(populacao_dsei) <- c("ds_dsei", "co_seq_dsei", "ano", "ativos_e_indigenas", "somente_ativos")
 
 populacao_dsei_calc <- populacao_dsei %>%
