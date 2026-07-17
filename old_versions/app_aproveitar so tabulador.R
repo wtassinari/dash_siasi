@@ -374,6 +374,13 @@ dashboard_ui <- dashboardPage(
         }
         
         /* Estilos para filtros */
+        .filtro-container {
+          margin-bottom: 18px;
+          padding: 12px;
+          background: #f9f9f9;
+          border-radius: 5px;
+          border-left: 4px solid #2196F3;
+        }
         .filtro-header {
           display: flex;
           justify-content: space-between;
@@ -383,6 +390,8 @@ dashboard_ui <- dashboardPage(
         .filtro-header h5 {
           margin: 0;
           font-weight: bold;
+          color: #333;
+          font-size: 14px;
         }
         .filtro-buttons {
           display: flex;
@@ -391,6 +400,25 @@ dashboard_ui <- dashboardPage(
         .filtro-buttons .btn {
           padding: 4px 8px;
           font-size: 11px;
+        }
+        /* Grid para checkboxes */
+        .filtro-checkboxes {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+          gap: 8px;
+          padding: 8px 0;
+        }
+        .filtro-checkboxes .checkbox {
+          margin: 0;
+          padding: 3px 0;
+        }
+        .filtro-checkboxes .checkbox label {
+          font-size: 12px;
+          margin-bottom: 0;
+          font-weight: 400;
+        }
+        .filtro-checkboxes .checkbox input[type='checkbox'] {
+          margin-right: 5px;
         }
       "))
     ),
@@ -931,7 +959,7 @@ server <- function(input, output, session) {
     updateSelectInput(session, "tab_estrato", choices = escolhas_estrato, selected = "nenhuma")
   })
   
-  # Painel de filtros dinâmico com checkboxGroupInput simples
+  # Painel de filtros dinâmico com checkboxGroupInput em grid
   output$tab_filtros_ui <- renderUI({
     tagList(
       lapply(vars_tabulador, function(v) {
@@ -944,22 +972,27 @@ server <- function(input, output, session) {
         
         tagList(
           div(
-            class = "filtro-header",
-            h5(v),
+            class = "filtro-container",
             div(
-              class = "filtro-buttons",
-              actionButton(paste0("btn_all_", v), "Selecionar Tudo", class = "btn-sm btn-success"),
-              actionButton(paste0("btn_none_", v), "Remover Tudo", class = "btn-sm btn-danger")
+              class = "filtro-header",
+              h5(v),
+              div(
+                class = "filtro-buttons",
+                actionButton(paste0("btn_all_", v), "Selecionar Tudo", class = "btn-sm btn-success"),
+                actionButton(paste0("btn_none_", v), "Remover Tudo", class = "btn-sm btn-danger")
+              )
+            ),
+            div(
+              class = "filtro-checkboxes",
+              checkboxGroupInput(
+                inputId = paste0("tab_filtro_", v),
+                label = NULL,
+                choices = choices_list,
+                selected = choices_list,
+                inline = TRUE
+              )
             )
-          ),
-          checkboxGroupInput(
-            inputId = paste0("tab_filtro_", v),
-            label = NULL,
-            choices = choices_list,
-            selected = choices_list,
-            inline = FALSE
-          ),
-          hr()
+          )
         )
       })
     )

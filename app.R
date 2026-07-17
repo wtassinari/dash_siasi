@@ -10,7 +10,6 @@ suppressWarnings({
   library(shiny)
   library(shinydashboard)
   library(plotly)
-
 })
 
 # ============================================
@@ -60,7 +59,7 @@ anonasc <- read.csv("frequencia_ano_nascimento.csv", sep=";", stringsAsFactors =
 anonasc <- anonasc %>%
   mutate(
     ano_categoria = as.character(ano_categoria),
-    ano_categoria = ifelse(ano_categoria == "Antes de 2000", "< 2000", ano_categoria)
+    ano_categoria = ifelse(ano_categoria == "Até 2000", "< 2000", ano_categoria)
   )
 
 anonasc_calc <- anonasc %>%
@@ -684,7 +683,7 @@ server <- function(input, output, session) {
       rownames = FALSE,
       colnames = c("Ano", "Ativos e Indígenas", "Somente Ativos", "Diferença", "% Ativ. Indig.", "% Só Ativos")
     ) %>%
-      formatRound(columns = c(2:3), digits = 0, mark = ".") %>%
+      formatRound(columns = c(1:3), digits = 0, mark = ".") %>%
       formatRound(columns = c(4:5), digits = 2) %>%
       formatStyle(1, target = 'row', backgroundColor = styleEqual("< 2000", '#ffcccc'))
   })
@@ -1115,7 +1114,7 @@ server <- function(input, output, session) {
   
 
   
-  # Painel de filtros dinâmico com checkboxGroupInput (nativo do Shiny)
+  # Painel de filtros dinâmico com pickerInput
   output$tab_filtros_ui <- renderUI({
     tagList(
       lapply(vars_tabulador, function(v) {
@@ -1127,12 +1126,21 @@ server <- function(input, output, session) {
         }
         tagList(
           h5(v),
-          checkboxGroupInput(
+          pickerInput(
             inputId = paste0("tab_filtro_", v),
             label = NULL,
             choices = choices_list,
             selected = choices_list,
-            inline = FALSE
+            multiple = TRUE,
+            options = list(
+              `actions-box` = TRUE,
+              `deselect-all-text` = "Remover Tudo",
+              `select-all-text` = "Selecionar Tudo",
+              `none-selected-text` = "Nenhum selecionado",
+              size = 10,
+              `live-search` = TRUE,
+              `live-search-placeholder` = "Buscar..."
+            )
           ),
           hr()
         )
