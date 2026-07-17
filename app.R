@@ -10,6 +10,7 @@ suppressWarnings({
   library(shiny)
   library(shinydashboard)
   library(plotly)
+  library(shinyWidgets)
 })
 
 # ============================================
@@ -184,10 +185,46 @@ tabulador_dados <- read.csv("tabela2000_2025.csv", sep=";", stringsAsFactors = F
 tabulador_dados$frequencia <- as.numeric(tabulador_dados$frequencia)
 tabulador_dados <- tabulador_dados[!is.na(tabulador_dados$frequencia), ]
 
-vars_tabulador <- c("ano", "idade_cat", "tp_sexo", "st_indigena", "co_dsei_aldeia", "ds_dsei_aldeia")
+# Converter ano para character para compatibilidade com outras variáveis
+tabulador_dados$ano <- as.character(tabulador_dados$ano)
+
+# Definir ordem correta de idade_cat
+idade_ordem <- c(
+  "Até 3 meses",
+  "De 3 meses a 6 meses",
+  "De 6 meses a 1 ano",
+  "1 a 4 anos",
+  "5 a 9 anos",
+  "10 a 14 anos",
+  "15 a 19 anos",
+  "20 a 24 anos",
+  "25 a 29 anos",
+  "30 a 34 anos",
+  "35 a 39 anos",
+  "40 a 44 anos",
+  "45 a 49 anos",
+  "50 a 54 anos",
+  "55 a 59 anos",
+  "60 a 64 anos",
+  "65 a 69 anos",
+  "70 a 74 anos",
+  "75 a 79 anos",
+  "80 anos ou mais"
+)
+tabulador_dados$idade_cat <- factor(tabulador_dados$idade_cat, levels = idade_ordem, ordered = TRUE)
+
+vars_tabulador <- c("ano", "idade_cat", "tp_sexo", "st_indigena", "ds_dsei_aldeia")
 
 # Função auxiliar para gerar tabela cruzada
 gerar_crosstab <- function(df, linha_var, coluna_var, tipo_valor) {
+  # Converter coluna de linha para character se for factor
+  if (is.factor(df[[linha_var]])) {
+    df[[linha_var]] <- as.character(df[[linha_var]])
+  }
+  if (is.factor(df[[coluna_var]])) {
+    df[[coluna_var]] <- as.character(df[[coluna_var]])
+  }
+  
   tab <- df %>%
     group_by(.data[[linha_var]], .data[[coluna_var]]) %>%
     summarise(freq = sum(frequencia), .groups = "drop") %>%
@@ -195,6 +232,18 @@ gerar_crosstab <- function(df, linha_var, coluna_var, tipo_valor) {
                        values_from = freq, values_fill = 0)
   
   valor_cols <- setdiff(names(tab), linha_var)
+  
+  # Se a coluna_var eh idade_cat, reordenar as colunas conforme a ordem cronologica
+  if (coluna_var == "idade_cat") {
+    # Manter apenas as colunas que existem na tabela
+    valor_cols_ordenado <- intersect(idade_ordem, valor_cols)
+    # Adicionar qualquer coluna que nao esteja em idade_ordem (por seguranca)
+    valor_cols_ordenado <- c(valor_cols_ordenado, setdiff(valor_cols, idade_ordem))
+    valor_cols <- valor_cols_ordenado
+  } else {
+    valor_cols <- sort(valor_cols)
+  }
+  
   tab$Total <- rowSums(tab[valor_cols])
   
   total_linha <- tab %>%
@@ -218,6 +267,10 @@ gerar_crosstab <- function(df, linha_var, coluna_var, tipo_valor) {
     tab_completa <- tab_completa %>%
       mutate(across(all_of(valor_cols_com_total), ~ round(.x / grande_total * 100, 1)))
   }
+  
+  # Reordenar as colunas finais conforme a ordem definida
+  colunas_finais <- c(linha_var, valor_cols_com_total)
+  tab_completa <- tab_completa[, colunas_finais]
   
   tab_completa
 }
@@ -451,10 +504,10 @@ dashboard_ui <- dashboardPage(
               fluidRow(
                 box(title = "Configuração do Tabulador", status = "primary", solidHeader = TRUE, width = 12,
                     column(3, selectInput("tab_linha", "Variável de Linha", 
-                                         choices = c("ano", "idade_cat", "tp_sexo", "st_indigena", "co_dsei_aldeia", "ds_dsei_aldeia"), 
+                                         choices = c("ano", "idade_cat", "tp_sexo", "st_indigena", "ds_dsei_aldeia"), 
                                          selected = "ds_dsei_aldeia")),
                     column(3, selectInput("tab_coluna", "Variável de Coluna", 
-                                         choices = c("ano", "idade_cat", "tp_sexo", "st_indigena", "co_dsei_aldeia", "ds_dsei_aldeia"), 
+                                         choices = c("ano", "idade_cat", "tp_sexo", "st_indigena", "ds_dsei_aldeia"), 
                                          selected = "idade_cat")),
                     column(3, selectInput("tab_estrato", "Estratificação (opcional)", 
                                          choices = c("Nenhuma" = "nenhuma"), selected = "nenhuma")),
@@ -1053,27 +1106,44 @@ server <- function(input, output, session) {
     atual <- isolate(input$tab_coluna)
     selecionado <- if (atual %in% escolhas_coluna) atual else escolhas_coluna[1]
     updateSelectInput(session, "tab_coluna", choices = escolhas_coluna, selected = selecionado)
+    
+    # Atualizar opções de estrato
+    outras <- setdiff(vars_tabulador, c(input$tab_linha, input$tab_coluna))
+    escolhas_estrato <- c("Nenhuma" = "nenhuma", setNames(outras, outras))
+    updateSelectInput(session, "tab_estrato", choices = escolhas_estrato, selected = "nenhuma")
   })
   
-  # Atualiza opções de estratificação
-  observeEvent(list(input$tab_linha, input$tab_coluna), {
-    outras <- setdiff(vars_tabulador, c(input$tab_linha, input$tab_coluna))
-    escolhas <- c("Nenhuma" = "nenhuma", setNames(outras, outras))
-    atual <- isolate(input$tab_estrato)
-    selecionado <- if (!is.null(atual) && atual %in% escolhas) atual else "nenhuma"
-    updateSelectInput(session, "tab_estrato", choices = escolhas, selected = selecionado)
-  }, ignoreInit = FALSE)
+
   
-  # Painel de filtros dinâmico
+  # Painel de filtros dinâmico com pickerInput
   output$tab_filtros_ui <- renderUI({
     tagList(
       lapply(vars_tabulador, function(v) {
-        checkboxGroupInput(
-          inputId = paste0("tab_filtro_", v),
-          label   = v,
-          choices = sort(unique(tabulador_dados[[v]])),
-          selected = sort(unique(tabulador_dados[[v]])),
-          inline  = TRUE
+        # Ordenar choices corretamente para idade_cat
+        if (v == "idade_cat") {
+          choices_list <- intersect(idade_ordem, unique(tabulador_dados[[v]]))
+        } else {
+          choices_list <- sort(unique(tabulador_dados[[v]]))
+        }
+        tagList(
+          h5(v),
+          pickerInput(
+            inputId = paste0("tab_filtro_", v),
+            label = NULL,
+            choices = choices_list,
+            selected = choices_list,
+            multiple = TRUE,
+            options = list(
+              `actions-box` = TRUE,
+              `deselect-all-text` = "Remover Tudo",
+              `select-all-text` = "Selecionar Tudo",
+              `none-selected-text` = "Nenhum selecionado",
+              size = 10,
+              `live-search` = TRUE,
+              `live-search-placeholder` = "Buscar..."
+            )
+          ),
+          hr()
         )
       })
     )

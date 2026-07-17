@@ -4,11 +4,13 @@
 
 suppressWarnings({
   library(tidyverse)
+  library(tidyr)
   library(DT)
   library(scales)
   library(shiny)
   library(shinydashboard)
   library(plotly)
+  library(shinyWidgets)
 })
 
 # ============================================
@@ -176,6 +178,87 @@ populacao_calc <- populacao %>%
 populacao_dsei <- read.csv("populacao2_por_ano_dsei.csv", sep=";")
 names(populacao_dsei) <- c("ds_dsei", "co_seq_dsei", "ano", "ativos_e_indigenas", "somente_ativos")
 
+# ============================================
+# CARREGAR DADOS DO TABULADOR
+# ============================================
+tabulador_dados <- read.csv("tabela2000_2025.csv", sep=";", stringsAsFactors = FALSE, encoding = "UTF-8")
+tabulador_dados$frequencia <- as.numeric(tabulador_dados$frequencia)
+tabulador_dados <- tabulador_dados[!is.na(tabulador_dados$frequencia), ]
+
+# Converter ano para character para compatibilidade com outras variáveis
+tabulador_dados$ano <- as.character(tabulador_dados$ano)
+
+# Definir ordem correta de idade_cat
+idade_ordem <- c(
+  "Até 3 meses",
+  "De 3 meses a 6 meses",
+  "De 6 meses a 1 ano",
+  "1 a 4 anos",
+  "5 a 9 anos",
+  "10 a 14 anos",
+  "15 a 19 anos",
+  "20 a 24 anos",
+  "25 a 29 anos",
+  "30 a 34 anos",
+  "35 a 39 anos",
+  "40 a 44 anos",
+  "45 a 49 anos",
+  "50 a 54 anos",
+  "55 a 59 anos",
+  "60 a 64 anos",
+  "65 a 69 anos",
+  "70 a 74 anos",
+  "75 a 79 anos",
+  "80 anos ou mais"
+)
+tabulador_dados$idade_cat <- factor(tabulador_dados$idade_cat, levels = idade_ordem, ordered = TRUE)
+
+vars_tabulador <- c("ano", "idade_cat", "tp_sexo", "st_indigena", "ds_dsei_aldeia")
+
+# Função auxiliar para gerar tabela cruzada
+gerar_crosstab <- function(df, linha_var, coluna_var, tipo_valor) {
+  # Converter coluna de linha para character se for factor
+  if (is.factor(df[[linha_var]])) {
+    df[[linha_var]] <- as.character(df[[linha_var]])
+  }
+  if (is.factor(df[[coluna_var]])) {
+    df[[coluna_var]] <- as.character(df[[coluna_var]])
+  }
+  
+  tab <- df %>%
+    group_by(.data[[linha_var]], .data[[coluna_var]]) %>%
+    summarise(freq = sum(frequencia), .groups = "drop") %>%
+    tidyr::pivot_wider(names_from = all_of(coluna_var),
+                       values_from = freq, values_fill = 0)
+  
+  valor_cols <- setdiff(names(tab), linha_var)
+  tab$Total <- rowSums(tab[valor_cols])
+  
+  total_linha <- tab %>%
+    summarise(across(all_of(c(valor_cols, "Total")), sum)) %>%
+    mutate(!!linha_var := "Total", .before = 1)
+  
+  tab_completa <- bind_rows(tab, total_linha)
+  valor_cols_com_total <- c(valor_cols, "Total")
+  
+  if (tipo_valor == "pct_linha") {
+    tab_completa <- tab_completa %>%
+      mutate(across(all_of(valor_cols_com_total), ~ round(.x / Total * 100, 1)))
+  } else if (tipo_valor == "pct_coluna") {
+    totais_coluna <- tab_completa[tab_completa[[linha_var]] == "Total",
+                                   valor_cols_com_total] %>% unlist()
+    tab_completa <- tab_completa %>%
+      mutate(across(all_of(valor_cols_com_total),
+                    ~ round(.x / totais_coluna[cur_column()] * 100, 1)))
+  } else if (tipo_valor == "pct_total") {
+    grande_total <- tab_completa$Total[tab_completa[[linha_var]] == "Total"]
+    tab_completa <- tab_completa %>%
+      mutate(across(all_of(valor_cols_com_total), ~ round(.x / grande_total * 100, 1)))
+  }
+  
+  tab_completa
+}
+
 populacao_dsei_calc <- populacao_dsei %>%
   arrange(ds_dsei, ano) %>%
   group_by(ds_dsei) %>%
@@ -236,7 +319,8 @@ dashboard_ui <- dashboardPage(
       menuItem("Registros Gerais", tabName = "registros", icon = icon("database")),
       menuItem("Nascimentos", tabName = "nascimentos", icon = icon("baby")),
       menuItem("Óbitos", tabName = "obitos", icon = icon("heart-broken")),
-      menuItem("População", tabName = "populacao", icon = icon("users"))
+      menuItem("População", tabName = "populacao", icon = icon("users")),
+      menuItem("Tabulador", tabName = "tabulador", icon = icon("table"))
     )
   ),
   
@@ -394,6 +478,40 @@ dashboard_ui <- dashboardPage(
               fluidRow(
                 box(title = "Série Temporal por DSEI", status = "info", solidHeader = TRUE, width = 12,
                     plotlyOutput("populacao_dsei_plot", height = "500px"))
+              )
+      ),
+      
+      # ============================================
+      # ABA: TABULADOR
+      # ============================================
+      tabItem(tabName = "tabulador",
+              fluidRow(
+                box(title = "Configuração do Tabulador", status = "primary", solidHeader = TRUE, width = 12,
+                    column(3, selectInput("tab_linha", "Variável de Linha", 
+                                         choices = c("ano", "idade_cat", "tp_sexo", "st_indigena", "ds_dsei_aldeia"), 
+                                         selected = "ds_dsei_aldeia")),
+                    column(3, selectInput("tab_coluna", "Variável de Coluna", 
+                                         choices = c("ano", "idade_cat", "tp_sexo", "st_indigena", "ds_dsei_aldeia"), 
+                                         selected = "idade_cat")),
+                    column(3, selectInput("tab_estrato", "Estratificação (opcional)", 
+                                         choices = c("Nenhuma" = "nenhuma"), selected = "nenhuma")),
+                    column(3, radioButtons("tab_tipo_valor", "Conteúdo",
+                                         choices = c("Frequência" = "abs", 
+                                                    "% Linha" = "pct_linha",
+                                                    "% Coluna" = "pct_coluna",
+                                                    "% Total" = "pct_total"),
+                                         selected = "abs", inline = TRUE))
+                )
+              ),
+              fluidRow(
+                box(title = "Filtros", status = "info", solidHeader = TRUE, width = 12,
+                    uiOutput("tab_filtros_ui"))
+              ),
+              fluidRow(
+                box(title = "Tabelas Cruzadas", status = "success", solidHeader = TRUE, width = 12,
+                    downloadButton("tab_baixar_csv", "Baixar CSV"),
+                    hr(),
+                    uiOutput("tab_conteudo_tabelas"))
               )
       )
     )
@@ -961,6 +1079,165 @@ server <- function(input, output, session) {
              legend = list(orientation = "h", y = -0.15),
              hovermode = "x unified")
   })
+  
+  # ============================================
+  # TABULADOR
+  # ============================================
+  
+  # Impede escolher a mesma variável em linha e coluna
+  observeEvent(input$tab_linha, {
+    escolhas_coluna <- setdiff(vars_tabulador, input$tab_linha)
+    atual <- isolate(input$tab_coluna)
+    selecionado <- if (atual %in% escolhas_coluna) atual else escolhas_coluna[1]
+    updateSelectInput(session, "tab_coluna", choices = escolhas_coluna, selected = selecionado)
+    
+    # Atualizar opções de estrato
+    outras <- setdiff(vars_tabulador, c(input$tab_linha, input$tab_coluna))
+    escolhas_estrato <- c("Nenhuma" = "nenhuma", setNames(outras, outras))
+    updateSelectInput(session, "tab_estrato", choices = escolhas_estrato, selected = "nenhuma")
+  })
+  
+
+  
+  # Painel de filtros dinâmico com pickerInput
+  output$tab_filtros_ui <- renderUI({
+    tagList(
+      lapply(vars_tabulador, function(v) {
+        # Ordenar choices corretamente para idade_cat
+        if (v == "idade_cat") {
+          choices_list <- intersect(idade_ordem, unique(tabulador_dados[[v]]))
+        } else {
+          choices_list <- sort(unique(tabulador_dados[[v]]))
+        }
+        tagList(
+          h5(v),
+          pickerInput(
+            inputId = paste0("tab_filtro_", v),
+            label = NULL,
+            choices = choices_list,
+            selected = choices_list,
+            multiple = TRUE,
+            options = list(
+              `actions-box` = TRUE,
+              `deselect-all-text` = "Remover Tudo",
+              `select-all-text` = "Selecionar Tudo",
+              `none-selected-text` = "Nenhum selecionado",
+              size = 10,
+              `live-search` = TRUE,
+              `live-search-placeholder` = "Buscar..."
+            )
+          ),
+          hr()
+        )
+      })
+    )
+  })
+  
+  # Dados filtrados
+  tab_dados_filtrados <- reactive({
+    df <- tabulador_dados
+    for (v in vars_tabulador) {
+      sel <- input[[paste0("tab_filtro_", v)]]
+      req(sel)
+      df <- df[df[[v]] %in% sel, ]
+    }
+    df
+  })
+  
+  # Tabela única reativa
+  tab_tabela_unica_reativa <- reactive({
+    req(input$tab_linha, input$tab_coluna, input$tab_linha != input$tab_coluna)
+    gerar_crosstab(tab_dados_filtrados(), input$tab_linha, input$tab_coluna, input$tab_tipo_valor)
+  })
+  
+  output$tab_tabela_unica <- renderDT({
+    tab <- tab_tabela_unica_reativa()
+    sufixo <- if (input$tab_tipo_valor != "abs") " (%)" else " (frequência)"
+    datatable(
+      tab, rownames = FALSE,
+      options = list(pageLength = 20, dom = 't', ordering = FALSE),
+      caption = paste0("Linhas: ", input$tab_linha, "  |  Colunas: ", input$tab_coluna, sufixo)
+    )
+  })
+  
+  # Decide o que mostrar: 1 tabela ou N tabelas estratificadas
+  output$tab_conteudo_tabelas <- renderUI({
+    req(input$tab_estrato)
+    if (input$tab_estrato == "nenhuma") {
+      DTOutput("tab_tabela_unica")
+    } else {
+      df <- tab_dados_filtrados()
+      valores_estrato <- sort(unique(df[[input$tab_estrato]]))
+      tagList(
+        lapply(valores_estrato, function(v) {
+          id <- paste0("tab_tabela_estrato_", make.names(v))
+          tagList(
+            h4(paste0(input$tab_estrato, ": ", v)),
+            DTOutput(id),
+            br()
+          )
+        })
+      )
+    }
+  })
+  
+  # Gera dinamicamente uma renderDT para cada categoria de estratificação
+  observe({
+    req(input$tab_estrato)
+    if (input$tab_estrato != "nenhuma") {
+      df <- tab_dados_filtrados()
+      valores_estrato <- sort(unique(df[[input$tab_estrato]]))
+      estrato_var <- input$tab_estrato
+      
+      lapply(valores_estrato, function(v) {
+        local({
+          valor_local <- v
+          id <- paste0("tab_tabela_estrato_", make.names(valor_local))
+          output[[id]] <- renderDT({
+            df_sub <- df[df[[estrato_var]] == valor_local, ]
+            tab <- gerar_crosstab(df_sub, input$tab_linha, input$tab_coluna, input$tab_tipo_valor)
+            sufixo <- if (input$tab_tipo_valor != "abs") " (%)" else " (frequência)"
+            datatable(
+              tab, rownames = FALSE,
+              options = list(pageLength = 20, dom = 't', ordering = FALSE),
+              caption = paste0("Linhas: ", input$tab_linha, "  |  Colunas: ", input$tab_coluna, sufixo)
+            )
+          })
+        })
+      })
+    }
+  })
+  
+  # Exportação
+  tab_tabelas_para_exportar <- reactive({
+    req(input$tab_linha, input$tab_coluna, input$tab_estrato)
+    df <- tab_dados_filtrados()
+    
+    if (input$tab_estrato == "nenhuma") {
+      tab <- gerar_crosstab(df, input$tab_linha, input$tab_coluna, input$tab_tipo_valor)
+      tab <- tab %>% mutate(Estrato = "Todos", .before = 1)
+      return(tab)
+    }
+    
+    valores_estrato <- sort(unique(df[[input$tab_estrato]]))
+    tabelas <- lapply(valores_estrato, function(v) {
+      df_sub <- df[df[[input$tab_estrato]] == v, ]
+      tab <- gerar_crosstab(df_sub, input$tab_linha, input$tab_coluna, input$tab_tipo_valor)
+      tab %>% mutate(Estrato = paste0(input$tab_estrato, ": ", v), .before = 1)
+    })
+    bind_rows(tabelas)
+  })
+  
+  output$tab_baixar_csv <- downloadHandler(
+    filename = function() {
+      sufixo_estrato <- if (input$tab_estrato == "nenhuma") "" else paste0("_por_", input$tab_estrato)
+      paste0("tabulador_", input$tab_linha, "_x_", input$tab_coluna, sufixo_estrato,
+             "_", input$tab_tipo_valor, ".csv")
+    },
+    content = function(file) {
+      write.csv2(tab_tabelas_para_exportar(), file, row.names = FALSE, fileEncoding = "UTF-8")
+    }
+  )
 }
 
 shinyApp(ui = ui, server = server)
