@@ -1,15 +1,59 @@
 # ============================================
-# DASHBOARD SIASI - VERSÃO 7.1
+# DASHBOARD SIASI - VERSÃO 6 (CARDS + REGISTROS + LOGIN)
 # ============================================
-library(tidyverse)
-library(tidyr)
-library(DT)
-library(scales)
-library(shiny)
-library(plotly)
+
+# ============================================
+# INSTALAR DEPENDÊNCIAS FALTANTES (FALLBACK)
+# ============================================
+required_packages <- c(
+  'tidyverse', 'tidyr', 'DT', 'scales', 'shiny', 'shinydashboard', 'plotly',
+  'broom', 'cli', 'dbplyr', 'dplyr', 'dtplyr', 'forcats',
+  'ggplot2', 'haven', 'hms', 'httr', 'jsonlite', 'lubridate',
+  'magrittr', 'purrr', 'readr', 'readxl', 'rlang', 'stringr',
+  'tibble', 'httpuv', 'htmltools', 'promises',
+  'glue', 'lifecycle', 'vctrs', 'R6', 'bslib', 'crosstalk',
+  'htmlwidgets', 'jquerylib', 'base64enc', 'digest', 'fastmap',
+  'fontawesome', 'mime', 'sourcetools', 'later', 'Rcpp', 'withr',
+  'cachem', 'memoise', 'sass', 'curl', 'openssl', 'yaml', 'fs',
+  'rappdirs', 'pillar', 'gtable', 'isoband', 'colorspace', 'fansi',
+  'pkgconfig', 'utf8', 'stringi', 'data.table', 'lazyeval', 'RColorBrewer',
+  'viridisLite', 'farver', 'labeling', 'munsell', 'ellipsis', 'generics',
+  'gargle', 'uuid', 'cellranger', 'timechange', 'clipr', 'crayon',
+  'tzdb', 'callr', 'knitr', 'rmarkdown', 'rstudioapi', 'selectr',
+  'processx', 'evaluate', 'highr', 'xfun', 'tinytex', 'ps', 'rematch'
+)
+
+new_packages <- required_packages[
+  !required_packages %in% installed.packages()[, "Package"]
+]
+
+if (length(new_packages) > 0) {
+  message("Instalando dependências faltantes: ", paste(new_packages, collapse = ", "))
+  tryCatch({
+    install.packages(new_packages, repos = "https://cloud.r-project.org", quiet = TRUE)
+  }, error = function(e) {
+    warning("Erro ao instalar dependências: ", e$message)
+  })
+}
+
+suppressWarnings({
+  library(tidyverse)
+  library(tidyr)
+  library(DT)
+  library(scales)
+  library(shiny)
+  library(shinydashboard)
+  library(plotly)
+  library(shinyWidgets)
+})
+
 # ============================================
 # CONFIGURAÇÃO DE SENHA
 # ============================================
+# A senha é lida de uma variável de ambiente, NUNCA fica escrita no código
+# (importante já que o app.R vai para o GitHub).
+# No Posit Connect: Configurações do app > Vars > adicionar SENHA_DASHBOARD.
+# Localmente (RStudio): defina em um arquivo .Renviron (que NÃO deve ir pro Git).
 SENHA_DASHBOARD <- Sys.getenv("SENHA_DASHBOARD", unset = "")
 
 if (SENHA_DASHBOARD == "") {
@@ -26,13 +70,13 @@ names(registros) <- c("categorias", "frequencias", "percentual_total_original")
 registros$frequencias <- as.numeric(registros$frequencias)
 registros$percentual_total_original <- as.numeric(registros$percentual_total_original)
 
-# Linhas que representam o filtro "Apenas Aldeados"
+# Linhas que representam o filtro "Apenas Aldeados" (para destacar na tabela)
 categorias_aldeados <- registros$categorias[grepl("aldeados", registros$categorias, ignore.case = TRUE)]
 
 # --- Valor externo: Total Original (não deduplicado) ---
 total_original_externo <- 1394825
 
-# --- Categorias que serão extraídas para os cards ---
+# --- Categorias que serão extraídas para os cards (marcadas em vermelho) ---
 categorias_cards <- c(
   "Total original",
   "Total aldeados",
@@ -45,7 +89,7 @@ categorias_cards <- c(
 registros_tabela <- registros %>%
   filter(!categorias %in% categorias_cards)
 
-# Dados de Nascimentos por Ano
+# Dados de Nascimentos por Ano (com todas as categorias)
 anonasc <- read.csv("frequencia_ano_nascimento.csv", sep=";", stringsAsFactors = FALSE)
 anonasc <- anonasc %>%
   mutate(
@@ -94,7 +138,7 @@ nascimentos_dsei_calc <- nascimentos_dsei %>%
   ungroup()
 
 # ============================================
-# DADOS DE ÓBITOS POR ANO
+# DADOS DE ÓBITOS POR ANO (ADAPTADO)
 # ============================================
 obitos_ano <- read.csv("frequencia_ano_obitos.csv", sep=";", stringsAsFactors = FALSE)
 names(obitos_ano) <- c("ano_categoria", "somente_ativos", "ativos_e_indigenas")
@@ -112,13 +156,13 @@ obitos_ano_calc <- obitos_ano %>%
     perc_col_somente_ativos = round((somente_ativos / sum(somente_ativos, na.rm = TRUE)) * 100, 2)
   )
 
-# Tabela filtrada
+# Tabela filtrada: remove "Sem informação" e substitui "Antes de 2000" por "< 2000"
 obitos_ano_table <- obitos_ano_calc %>%
   filter(ano_categoria != "Sem informação") %>%
   mutate(ano_categoria = ifelse(ano_categoria == "Antes de 2000", "< 2000", ano_categoria))
 
 # ============================================
-# DADOS DE ÓBITOS POR DSEI
+# DADOS DE ÓBITOS POR DSEI (ADAPTADO)
 # ============================================
 obitos_dsei <- read.csv("frequencia_ano_obitos_dsei.csv", sep=";", stringsAsFactors = FALSE)
 names(obitos_dsei) <- c("ds_dsei", "co_dsei_polo", "ano_obito",
@@ -175,7 +219,7 @@ tabulador_dados <- read.csv("tabela2000_2025.csv", sep=";", stringsAsFactors = F
 tabulador_dados$frequencia <- as.numeric(tabulador_dados$frequencia)
 tabulador_dados <- tabulador_dados[!is.na(tabulador_dados$frequencia), ]
 
-# Converter ano para character
+# Converter ano para character para compatibilidade com outras variáveis
 tabulador_dados$ano <- as.character(tabulador_dados$ano)
 
 # Definir ordem correta de idade_cat
@@ -225,7 +269,9 @@ gerar_crosstab <- function(df, linha_var, coluna_var, tipo_valor) {
   
   # Se a coluna_var eh idade_cat, reordenar as colunas conforme a ordem cronologica
   if (coluna_var == "idade_cat") {
+    # Manter apenas as colunas que existem na tabela
     valor_cols_ordenado <- intersect(idade_ordem, valor_cols)
+    # Adicionar qualquer coluna que nao esteja em idade_ordem (por seguranca)
     valor_cols_ordenado <- c(valor_cols_ordenado, setdiff(valor_cols, idade_ordem))
     valor_cols <- valor_cols_ordenado
   } else {
@@ -246,7 +292,7 @@ gerar_crosstab <- function(df, linha_var, coluna_var, tipo_valor) {
       mutate(across(all_of(valor_cols_com_total), ~ round(.x / Total * 100, 1)))
   } else if (tipo_valor == "pct_coluna") {
     totais_coluna <- tab_completa[tab_completa[[linha_var]] == "Total",
-                                  valor_cols_com_total] %>% unlist()
+                                   valor_cols_com_total] %>% unlist()
     tab_completa <- tab_completa %>%
       mutate(across(all_of(valor_cols_com_total),
                     ~ round(.x / totais_coluna[cur_column()] * 100, 1)))
@@ -278,7 +324,7 @@ populacao_dsei_calc <- populacao_dsei %>%
   ungroup()
 
 # ============================================
-# UI DO SHINY (COM SIDEBAR)
+# UI DO SHINY
 # ============================================
 
 # --- Tela de login ---
@@ -301,316 +347,228 @@ login_ui <- fluidPage(
   ),
   div(class = "login-box",
       h2("Dashboard SIASI"),
-      icon("lock", style = "font-size: 48px; color: #367fa9; margin-bottom: 20px;"),
+      icon("lock", style = "font-size: 40px; color: #367fa9; margin-bottom: 15px;"),
       passwordInput("senha_login", NULL, placeholder = "Digite a senha"),
       actionButton("btn_login", "Entrar", icon = icon("sign-in-alt"),
-                   class = "btn-primary", style = "width: 100%; margin-top: 10px;"),
+                   class = "btn-primary", style = "width: 100%;"),
       uiOutput("login_erro")
   )
 )
 
-# --- Conteúdo do dashboard (com sidebar) ---
-dashboard_ui <- fluidPage(
-  tags$head(
-    tags$style(HTML("
-      * { margin: 0; padding: 0; box-sizing: border-box; }
-      body { background-color: #f4f4f4; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-      
-      /* Layout com sidebar */
-      .main-container {
-        display: flex;
-        min-height: 100vh;
-      }
-      
-      /* Navbar */
-      .navbar-custom {
-        background-color: #367fa9;
-        padding: 15px 20px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        z-index: 1000;
-        height: 60px;
-      }
-      .navbar-custom h1 { color: white; margin: 0; font-size: 24px; }
-      .navbar-custom .btn-logout { background-color: #dd4b39; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; }
-      .navbar-custom .btn-logout:hover { background-color: #c0392b; }
-      
-      /* Sidebar */
-      .sidebar-menu {
-        width: 250px;
-        background-color: #222d32;
-        color: white;
-        padding: 20px 0;
-        margin-top: 60px;
-        height: calc(100vh - 60px);
-        overflow-y: auto;
-        box-shadow: 2px 0 8px rgba(0,0,0,0.1);
-        position: fixed;
-        left: 0;
-      }
-      .sidebar-menu .menu-item {
-        padding: 12px 20px;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        border-left: 4px solid transparent;
-        font-size: 14px;
-        font-weight: 500;
-      }
-      .sidebar-menu .menu-item:hover {
-        background-color: #1a1f23;
-        border-left-color: #367fa9;
-      }
-      .sidebar-menu .menu-item.active {
-        background-color: #367fa9;
-        border-left-color: #367fa9;
-        color: white;
-      }
-      
-      /* Content area */
-      .content-area {
-        flex: 1;
-        margin-top: 60px;
-        margin-left: 250px;
-        padding: 20px;
-        overflow-y: auto;
-        height: calc(100vh - 60px);
-      }
-      
-      /* Cards */
-      .registro-card {
-        background: #ffffff;
-        border-radius: 12px;
-        padding: 20px 18px;
-        text-align: center;
-        box-shadow: 0 3px 12px rgba(0,0,0,0.1);
-        border-top: 4px solid #e74c3c;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-        margin-bottom: 15px;
-      }
-      .registro-card:hover {
-        transform: translateY(-3px);
-        box-shadow: 0 5px 18px rgba(0,0,0,0.15);
-      }
-      .registro-card .card-icon {
-        font-size: 36px;
-        color: #e74c3c;
-        margin-bottom: 8px;
-      }
-      .registro-card .card-label {
-        font-size: 13px;
-        color: #555;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: 6px;
-      }
-      .registro-card .card-valor {
-        font-size: 28px;
-        font-weight: 700;
-        color: #2c3e50;
-        margin-bottom: 4px;
-      }
-      .registro-card .card-percentual {
-        font-size: 15px;
-        color: #e74c3c;
-        font-weight: 600;
-      }
-      
-      /* Box */
-      .box {
-        background: white;
-        border-radius: 8px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        padding: 20px;
-        margin-bottom: 20px;
-      }
-      .box-title {
-        font-size: 18px;
-        font-weight: 600;
-        color: #2c3e50;
-        margin-bottom: 15px;
-        border-bottom: 2px solid #367fa9;
-        padding-bottom: 10px;
-      }
-      
-      /* Filtros - Layout com cabeçalho e seções */
-      .tab_filtros_wrapper {
-        background: #f5f5f5;
-        border-radius: 4px;
-        border: 1px solid #ddd;
-      }
-      .filtros-header {
-        background-color: #2196F3;
-        color: white;
-        padding: 12px 16px;
-        font-size: 16px;
-        font-weight: 600;
-        border-radius: 4px 4px 0 0;
-      }
-      
-      /* Filtros - Layout com moldura e fundo */
-      .filtro-container {
-        background: #f9f9f9;
-        border-left: 4px solid #2196F3;
-        padding: 12px 16px;
-        margin: 0;
-        border-radius: 0;
-        border-bottom: 1px solid #e0e0e0;
-      }
-      .filtro-container:last-child {
-        border-bottom: none;
-        border-radius: 0 0 4px 4px;
-      }
-      .filtro-titulo {
-        font-size: 13px;
-        font-weight: 700;
-        color: #333;
-        margin-bottom: 8px;
-        text-transform: lowercase;
-        letter-spacing: 0;
-      }
-      
-      /* Container de opções com CSS Grid para múltiplas colunas */
-      .filtro-opcoes {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); /* Cria colunas dinâmicas */
-        gap: 12px 20px; /* Espaçamento vertical e horizontal */
-        margin-top: 15px;
-        margin-bottom: 10px;
-        align-items: center;
-      }
-      .checkbox-item {
-        display: block;
-        font-size: 13px;
-        color: #333;
-      }
-      /* Resetando margens padrão do Bootstrap que o Shiny insere no checkboxInput */
-      .checkbox-item .form-group {
-        margin: 0 !important;
-        padding: 0 !important;
-      }
-      .checkbox-item .checkbox {
-        margin: 0 !important;
-      }
-      .checkbox-item .checkbox label {
-        display: flex;
-        align-items: center;
-        margin: 0;
-        cursor: pointer;
-        font-weight: 500;
-      }
-      /* Estilização da caixinha do checkbox */
-      .checkbox-item input[type='checkbox'] {
-        margin-right: 8px !important;
-        margin-left: 0 !important;
-        position: static !important;
-        cursor: pointer;
-        width: 16px;
-        height: 16px;
-        flex-shrink: 0;
-      }
-      /* Destaque visual (preto e negrito) quando marcado */
-      .checkbox-item input[type='checkbox']:checked + span {
-        font-weight: 700;
-        color: #000000;
-      }
-      
-      /* Botões de ação */
-      .filtro-botoes {
-        display: flex;
-        gap: 8px;
-        margin-top: 0;
-        justify-content: flex-end;
-        position: absolute;
-        right: 16px;
-        top: 12px;
-      }
-      .filtro-container {
-        position: relative;
-      }
-      .btn-select-all {
-        background-color: #4CAF50;
-        color: white;
-        border: none;
-        padding: 8px 16px;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 12px;
-        font-weight: 600;
-        transition: background-color 0.2s ease;
-      }
-      .btn-select-all:hover {
-        background-color: #45a049;
-      }
-      .btn-remove-all {
-        background-color: #f44336;
-        color: white;
-        border: none;
-        padding: 8px 16px;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 12px;
-        font-weight: 600;
-        transition: background-color 0.2s ease;
-      }
-      .btn-remove-all:hover {
-        background-color: #da190b;
-      }
-      
-      .dataTables_wrapper { font-size: 12px; }
-      
-      /* Responsividade */
-      @media (max-width: 768px) {
-        .sidebar-menu { width: 100%; height: auto; position: relative; margin-top: 0; }
-        .content-area { margin-left: 0; margin-top: 0; }
-      }
-    "))
+# --- Conteúdo do dashboard (o que já existia) ---
+dashboard_ui <- dashboardPage(
+  dashboardHeader(
+    title = "Dashboard SIASI",
+    tags$li(class = "dropdown",
+            actionButton("btn_logout", "Sair", icon = icon("sign-out-alt"),
+                         style = "margin: 8px; background-color: #dd4b39; color: white; border: none;"))
   ),
   
-  # Navbar
-  div(class = "navbar-custom",
-      h1(icon("chart-bar"), " Dashboard SIASI"),
-      actionButton("btn_logout", "Sair", icon = icon("sign-out-alt"),
-                   class = "btn-logout")
+  dashboardSidebar(
+    sidebarMenu(
+      menuItem("Registros Gerais", tabName = "registros", icon = icon("database")),
+      menuItem("Nascimentos", tabName = "nascimentos", icon = icon("baby")),
+      menuItem("Óbitos", tabName = "obitos", icon = icon("heart-broken")),
+      menuItem("População", tabName = "populacao", icon = icon("users")),
+      menuItem("Tabulador", tabName = "tabulador", icon = icon("table"))
+    )
   ),
   
-  # Sidebar + Content
-  div(class = "main-container",
-      # Sidebar
-      div(class = "sidebar-menu",
-          div(class = "menu-item active", `data-tab` = "registros", icon("database"), " Registros Gerais"),
-          div(class = "menu-item", `data-tab` = "nascimentos", icon("baby"), " Nascimentos"),
-          div(class = "menu-item", `data-tab` = "obitos", icon("heart-broken"), " Óbitos"),
-          div(class = "menu-item", `data-tab` = "populacao", icon("users"), " População"),
-          div(class = "menu-item", `data-tab` = "tabulador", icon("table"), " Tabulador")
+  dashboardBody(
+    tags$head(
+      tags$style(HTML("
+        .content-wrapper, .right-side { background-color: #f4f4f4; }
+        .box { border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .dataTables_wrapper { font-size: 12px; }
+        
+        /* Estilos personalizados para os cards de registros */
+        .registro-card {
+          background: #ffffff;
+          border-radius: 12px;
+          padding: 20px 18px;
+          text-align: center;
+          box-shadow: 0 3px 12px rgba(0,0,0,0.1);
+          border-top: 4px solid #e74c3c;
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .registro-card:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 5px 18px rgba(0,0,0,0.15);
+        }
+        .registro-card .card-icon {
+          font-size: 36px;
+          color: #e74c3c;
+          margin-bottom: 8px;
+        }
+        .registro-card .card-label {
+          font-size: 13px;
+          color: #555;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          margin-bottom: 6px;
+        }
+        .registro-card .card-valor {
+          font-size: 28px;
+          font-weight: 700;
+          color: #2c3e50;
+          margin-bottom: 4px;
+        }
+        .registro-card .card-percentual {
+          font-size: 15px;
+          color: #e74c3c;
+          font-weight: 600;
+        }
+      "))
+    ),
+    
+    tabItems(
+      # ============================================
+      # ABA: REGISTROS GERAIS
+      # ============================================
+      tabItem(tabName = "registros",
+              # --- CARDS COM OS REGISTROS DESTACADOS ---
+              fluidRow(
+                htmlOutput("cards_registros")
+              ),
+              # --- TABELA COM OS DEMAIS REGISTROS ---
+              fluidRow(
+                box(title = "Outros Registros da Base de Dados", status = "primary", solidHeader = TRUE, width = 12,
+                    DTOutput("registros_table"))
+              )
       ),
       
-      # Content
-      div(class = "content-area",
-          uiOutput("tabs_ui")
+      # ============================================
+      # ABA: NASCIMENTOS
+      # ============================================
+      tabItem(tabName = "nascimentos",
+              # Tabela Anual
+              fluidRow(
+                box(title = "Frequência de Nascimentos por Ano", status = "primary", solidHeader = TRUE, width = 12,
+                    DTOutput("nascimentos_ano_table"))
+              ),
+              # Gráfico Anual
+              fluidRow(
+                box(title = "Evolução de Nascimentos por Ano", status = "success", solidHeader = TRUE, width = 12,
+                    plotlyOutput("nascimentos_ano_plot", height = "500px"))
+              ),
+              # Filtro DSEI
+              fluidRow(
+                box(title = "Filtro de DSEI", status = "primary", solidHeader = TRUE, width = 12,
+                    uiOutput("filtro_dsei_nascimentos"))
+              ),
+              # Tabela DSEI
+              fluidRow(
+                box(title = "Frequência de Nascimentos por DSEI e Ano", status = "success", solidHeader = TRUE, width = 12,
+                    DTOutput("nascimentos_dsei_table"))
+              ),
+              # Gráfico DSEI
+              fluidRow(
+                box(title = "Série Temporal por DSEI", status = "info", solidHeader = TRUE, width = 12,
+                    plotlyOutput("nascimentos_dsei_plot", height = "500px"))
+              )
+      ),
+      
+      # ============================================
+      # ABA: ÓBITOS (ADAPTADA)
+      # ============================================
+      tabItem(tabName = "obitos",
+              # Tabela Anual
+              fluidRow(
+                box(title = "Frequência de Óbitos por Ano", status = "primary", solidHeader = TRUE, width = 12,
+                    DTOutput("obitos_ano_table"))
+              ),
+              # Gráfico Anual
+              fluidRow(
+                box(title = "Evolução de Óbitos por Ano", status = "success", solidHeader = TRUE, width = 12,
+                    plotlyOutput("obitos_ano_plot", height = "500px"))
+              ),
+              # Filtro DSEI
+              fluidRow(
+                box(title = "Filtro de DSEI", status = "primary", solidHeader = TRUE, width = 12,
+                    uiOutput("filtro_dsei_obitos"))
+              ),
+              # Tabela DSEI
+              fluidRow(
+                box(title = "Frequência de Óbitos por DSEI e Ano", status = "success", solidHeader = TRUE, width = 12,
+                    DTOutput("obitos_dsei_table"))
+              ),
+              # Gráfico DSEI
+              fluidRow(
+                box(title = "Série Temporal por DSEI", status = "info", solidHeader = TRUE, width = 12,
+                    plotlyOutput("obitos_dsei_plot", height = "500px"))
+              )
+      ),
+      
+      # ============================================
+      # ABA: POPULAÇÃO
+      # ============================================
+      tabItem(tabName = "populacao",
+              # Tabela Anual
+              fluidRow(
+                box(title = "População por Ano", status = "primary", solidHeader = TRUE, width = 12,
+                    DTOutput("populacao_ano_table"))
+              ),
+              # Gráfico Anual
+              fluidRow(
+                box(title = "Evolução Populacional", status = "success", solidHeader = TRUE, width = 12,
+                    plotlyOutput("populacao_ano_plot", height = "500px"))
+              ),
+              # Filtro DSEI
+              fluidRow(
+                box(title = "Filtro de DSEI", status = "primary", solidHeader = TRUE, width = 12,
+                    uiOutput("filtro_dsei_populacao"))
+              ),
+              # Tabela DSEI
+              fluidRow(
+                box(title = "População por DSEI e Ano", status = "success", solidHeader = TRUE, width = 12,
+                    DTOutput("populacao_dsei_table"))
+              ),
+              # Gráfico DSEI
+              fluidRow(
+                box(title = "Série Temporal por DSEI", status = "info", solidHeader = TRUE, width = 12,
+                    plotlyOutput("populacao_dsei_plot", height = "500px"))
+              )
+      ),
+      
+      # ============================================
+      # ABA: TABULADOR
+      # ============================================
+      tabItem(tabName = "tabulador",
+              fluidRow(
+                box(title = "Configuração do Tabulador", status = "primary", solidHeader = TRUE, width = 12,
+                    column(3, selectInput("tab_linha", "Variável de Linha", 
+                                         choices = c("ano", "idade_cat", "tp_sexo", "st_indigena", "ds_dsei_aldeia"), 
+                                         selected = "ds_dsei_aldeia")),
+                    column(3, selectInput("tab_coluna", "Variável de Coluna", 
+                                         choices = c("ano", "idade_cat", "tp_sexo", "st_indigena", "ds_dsei_aldeia"), 
+                                         selected = "idade_cat")),
+                    column(3, selectInput("tab_estrato", "Estratificação (opcional)", 
+                                         choices = c("Nenhuma" = "nenhuma"), selected = "nenhuma")),
+                    column(3, radioButtons("tab_tipo_valor", "Conteúdo",
+                                         choices = c("Frequência" = "abs", 
+                                                    "% Linha" = "pct_linha",
+                                                    "% Coluna" = "pct_coluna",
+                                                    "% Total" = "pct_total"),
+                                         selected = "abs", inline = TRUE))
+                )
+              ),
+              fluidRow(
+                box(title = "Filtros", status = "info", solidHeader = TRUE, width = 12,
+                    uiOutput("tab_filtros_ui"))
+              ),
+              fluidRow(
+                box(title = "Tabelas Cruzadas", status = "success", solidHeader = TRUE, width = 12,
+                    downloadButton("tab_baixar_csv", "Baixar CSV"),
+                    hr(),
+                    uiOutput("tab_conteudo_tabelas"))
+              )
       )
-  ),
-  
-  # Script para controlar abas
-  tags$script(HTML("
-    $(document).ready(function() {
-      $('.menu-item').on('click', function() {
-        var tab = $(this).data('tab');
-        $('.menu-item').removeClass('active');
-        $(this).addClass('active');
-        Shiny.setInputValue('selected_tab', tab);
-      });
-    });
-  "))
+    )
+  )
 )
 
-# --- UI final ---
+# --- UI final: alterna entre login e dashboard via server ---
 ui <- uiOutput("pagina_principal")
 
 # ============================================
@@ -649,158 +607,12 @@ server <- function(input, output, session) {
   })
   
   # ============================================
-  # CONTROLE DE ABAS
-  # ============================================
-  aba_selecionada <- reactiveVal("registros")
-  
-  observeEvent(input$selected_tab, {
-    aba_selecionada(input$selected_tab)
-  })
-  
-  # ============================================
-  # RENDERIZAR TABS
-  # ============================================
-  output$tabs_ui <- renderUI({
-    tab <- aba_selecionada()
-    
-    if (tab == "registros") {
-      tagList(
-        fluidRow(
-          htmlOutput("cards_registros")
-        ),
-        fluidRow(
-          div(class = "box",
-              div(class = "box-title", "Outros Registros da Base de Dados"),
-              DTOutput("registros_table"))
-        )
-      )
-    } else if (tab == "nascimentos") {
-      tagList(
-        fluidRow(
-          div(class = "box",
-              div(class = "box-title", "Frequência de Nascimentos por Ano"),
-              DTOutput("nascimentos_ano_table"))
-        ),
-        fluidRow(
-          div(class = "box",
-              div(class = "box-title", "Evolução de Nascimentos por Ano"),
-              plotlyOutput("nascimentos_ano_plot", height = "500px"))
-        ),
-        fluidRow(
-          div(class = "box",
-              div(class = "box-title", "Filtro de DSEI"),
-              uiOutput("filtro_dsei_nascimentos"))
-        ),
-        fluidRow(
-          div(class = "box",
-              div(class = "box-title", "Frequência de Nascimentos por DSEI e Ano"),
-              DTOutput("nascimentos_dsei_table"))
-        ),
-        fluidRow(
-          div(class = "box",
-              div(class = "box-title", "Série Temporal por DSEI"),
-              plotlyOutput("nascimentos_dsei_plot", height = "500px"))
-        )
-      )
-    } else if (tab == "obitos") {
-      tagList(
-        fluidRow(
-          div(class = "box",
-              div(class = "box-title", "Frequência de Óbitos por Ano"),
-              DTOutput("obitos_ano_table"))
-        ),
-        fluidRow(
-          div(class = "box",
-              div(class = "box-title", "Evolução de Óbitos por Ano"),
-              plotlyOutput("obitos_ano_plot", height = "500px"))
-        ),
-        fluidRow(
-          div(class = "box",
-              div(class = "box-title", "Filtro de DSEI"),
-              uiOutput("filtro_dsei_obitos"))
-        ),
-        fluidRow(
-          div(class = "box",
-              div(class = "box-title", "Frequência de Óbitos por DSEI e Ano"),
-              DTOutput("obitos_dsei_table"))
-        ),
-        fluidRow(
-          div(class = "box",
-              div(class = "box-title", "Série Temporal por DSEI"),
-              plotlyOutput("obitos_dsei_plot", height = "500px"))
-        )
-      )
-    } else if (tab == "populacao") {
-      tagList(
-        fluidRow(
-          div(class = "box",
-              div(class = "box-title", "População por Ano"),
-              DTOutput("populacao_ano_table"))
-        ),
-        fluidRow(
-          div(class = "box",
-              div(class = "box-title", "Evolução Populacional"),
-              plotlyOutput("populacao_ano_plot", height = "500px"))
-        ),
-        fluidRow(
-          div(class = "box",
-              div(class = "box-title", "Filtro de DSEI"),
-              uiOutput("filtro_dsei_populacao"))
-        ),
-        fluidRow(
-          div(class = "box",
-              div(class = "box-title", "População por DSEI e Ano"),
-              DTOutput("populacao_dsei_table"))
-        ),
-        fluidRow(
-          div(class = "box",
-              div(class = "box-title", "Série Temporal por DSEI"),
-              plotlyOutput("populacao_dsei_plot", height = "500px"))
-        )
-      )
-    } else if (tab == "tabulador") {
-      tagList(
-        fluidRow(
-          div(class = "box",
-              div(class = "box-title", "Configuração do Tabulador"),
-              fluidRow(
-                column(3, selectInput("tab_linha", "Variável de Linha", 
-                                      choices = c("ano", "idade_cat", "tp_sexo", "st_indigena", "ds_dsei_aldeia"), 
-                                      selected = "ds_dsei_aldeia")),
-                column(3, selectInput("tab_coluna", "Variável de Coluna", 
-                                      choices = c("ano", "idade_cat", "tp_sexo", "st_indigena", "ds_dsei_aldeia"), 
-                                      selected = "idade_cat")),
-                column(3, selectInput("tab_estrato", "Estratificação (opcional)", 
-                                      choices = c("Nenhuma" = "nenhuma"), selected = "nenhuma")),
-                column(3, radioButtons("tab_tipo_valor", "Conteúdo",
-                                       choices = c("Frequência" = "abs", 
-                                                   "% Linha" = "pct_linha",
-                                                   "% Coluna" = "pct_coluna",
-                                                   "% Total" = "pct_total"),
-                                       selected = "abs", inline = TRUE))
-              ))
-        ),
-        fluidRow(
-          div(class = "box",
-              div(class = "box-title", "Filtros"),
-              uiOutput("tab_filtros_ui"))
-        ),
-        fluidRow(
-          div(class = "box",
-              div(class = "box-title", "Tabelas Cruzadas"),
-              downloadButton("tab_baixar_csv", "Baixar CSV"),
-              hr(),
-              uiOutput("tab_conteudo_tabelas"))
-        )
-      )
-    }
-  })
-  
-  # ============================================
   # REGISTROS GERAIS — CARDS
   # ============================================
   
   output$cards_registros <- renderUI({
+    # Mapeamento: categoria -> ícone FontAwesome
+    # Nota: "Total original" do CSV será exibido como "Total Deduplicado"
     icone_map <- list(
       "Total original"                = "filter",
       "Total aldeados"                = "map-marker-alt",
@@ -809,7 +621,7 @@ server <- function(input, output, session) {
       "Ativos e indígenas (aldeados)" = "users"
     )
     
-    # Primeiro card: Total Original
+    # Primeiro card: Total Original (valor externo)
     card_total_original <- {
       valor <- format(total_original_externo, big.mark = ".", decimal.mark = ",")
       percent_dedup <- sprintf("%.2f", 100 * registros$frequencias[registros$categorias == "Total original"] / total_original_externo)
@@ -822,7 +634,7 @@ server <- function(input, output, session) {
       )
     }
     
-    # Cards restantes
+    # Cards restantes: do CSV
     cards_csv <- registros %>%
       filter(categorias %in% categorias_cards) %>%
       pull(categorias) %>%
@@ -830,9 +642,11 @@ server <- function(input, output, session) {
         linha <- registros %>% filter(categorias == cat)
         valor <- format(linha$frequencias, big.mark = ".", decimal.mark = ",")
         
+        # Se for "Total original", renomear para "Total Deduplicado"
         label <- ifelse(cat == "Total original", "Total Deduplicado", cat)
         icone <- icone_map[[cat]] %||% "circle"
         
+        # Percentual: do CSV (baseado no total deduplicado)
         percent <- sprintf("%.2f", linha$percentual_total_original)
         
         div(class = "registro-card",
@@ -843,8 +657,10 @@ server <- function(input, output, session) {
         )
       })
     
+    # Combina: Total Original primeiro, depois os demais
     cards <- c(list(card_total_original), cards_csv)
     
+    # Montar a grid: 5 cards em uma linha responsiva
     tagList(
       div(
         style = "display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; padding: 10px 0;",
@@ -854,20 +670,20 @@ server <- function(input, output, session) {
   })
   
   # ============================================
-  # REGISTROS GERAIS — TABELA
+  # REGISTROS GERAIS — TABELA (sem os cards)
   # ============================================
   output$registros_table <- renderDT({
     datatable(registros_tabela,
-              options = list(
-                language = list(url = '//cdn.datatables.net/plug-ins/1.13.4/i18n/pt-BR.json'),
-                dom = 'Bfrtip',
-                buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
-                scrollX = TRUE,
-                paging = FALSE
-              ),
-              extensions = c('Buttons'),
-              rownames = FALSE,
-              colnames = c("Categorias", "Frequências", "% do Total Original")
+      options = list(
+        language = list(url = '//cdn.datatables.net/plug-ins/1.13.4/i18n/pt-BR.json'),
+        dom = 'Bfrtip',
+        buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+        scrollX = TRUE,
+        paging = FALSE
+      ),
+      extensions = c('Buttons'),
+      rownames = FALSE,
+      colnames = c("Categorias", "Frequências", "% do Total Original")
     ) %>%
       formatRound(columns = 2, digits = 0, mark = ".") %>%
       formatRound(columns = 3, digits = 2, mark = ".") %>%
@@ -875,49 +691,61 @@ server <- function(input, output, session) {
         "categorias",
         target = "row",
         backgroundColor = styleEqual(categorias_aldeados[!categorias_aldeados %in% categorias_cards],
-                                     rep("#eaf3ff", sum(!categorias_aldeados %in% categorias_cards)))
+                                      rep("#eaf3ff", sum(!categorias_aldeados %in% categorias_cards)))
       )
   })
   
   # ============================================
   # NASCIMENTOS
   # ============================================
+  
   output$nascimentos_ano_table <- renderDT({
-    datatable(anonasc_table,
-              options = list(
-                language = list(url = '//cdn.datatables.net/plug-ins/1.13.4/i18n/pt-BR.json'),
-                dom = 'Bfrtip',
-                buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
-                scrollY = "300px",
-                scrollCollapse = TRUE,
-                scrollX = TRUE,
-                paging = FALSE
-              ),
-              extensions = c('Buttons', 'Scroller'),
-              rownames = FALSE,
-              colnames = c("Ano", "Ativ. Indig.", "Só Ativos", "Diferença", "% Indig.", "% Ativos")
+    # Manter a coluna como character para exibição correta de "< 2000"
+    tabela_display <- anonasc_table %>%
+      mutate(ano_categoria = as.character(ano_categoria))
+    
+    datatable(tabela_display,
+      options = list(
+        language = list(url = '//cdn.datatables.net/plug-ins/1.13.4/i18n/pt-BR.json'),
+        dom = 'Bfrtip',
+        buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+        scrollY = "300px",
+        scrollCollapse = TRUE,
+        scrollX = TRUE,
+        paging = FALSE
+      ),
+      extensions = c('Buttons', 'Scroller'),
+      rownames = FALSE,
+      colnames = c("Ano", "Ativos e Indígenas", "Somente Ativos", "Diferença", "% Ativ. Indig.", "% Só Ativos")
     ) %>%
-      formatRound(columns = c(2:4), digits = 0, mark = ".") %>%
-      formatRound(columns = c(5:6), digits = 2)
+      formatRound(columns = c(1:3), digits = 0, mark = ".") %>%
+      formatRound(columns = c(4:5), digits = 2) %>%
+      formatStyle(1, target = 'row', backgroundColor = styleEqual("< 2000", '#ffcccc'))
   })
   
   output$nascimentos_ano_plot <- renderPlotly({
-    anonasc_numerico <- anonasc_calc %>%
-      filter(ano_categoria != "Sem informação") %>%
-      mutate(ano = as.numeric(ano_categoria))
+    anonasc_numerico <- anonasc %>%
+      filter(ano_categoria != "< 2000") %>%
+      mutate(ano_categoria = as.numeric(ano_categoria))
     
-    plot_ly(anonasc_numerico) %>%
-      add_trace(x = ~ano, y = ~ativos_e_indigenas, name = "Ativos e Indígenas",
-                type = "scatter", mode = "lines", fill = 'tozeroy',
-                fillcolor = 'rgba(231, 76, 60, 0.3)',
-                line = list(color = '#e74c3c', width = 2)) %>%
-      add_trace(x = ~ano, y = ~somente_ativos, name = "Somente Ativos",
-                type = "scatter", mode = "lines", fill = 'tonexty',
-                fillcolor = 'rgba(52, 152, 219, 0.3)',
-                line = list(color = '#3498db', width = 2)) %>%
-      layout(title = "Evolução de Nascimentos",
-             xaxis = list(title = "Ano", dtick = 2),
-             yaxis = list(title = "Nascimentos", tickformat = ",.0f"),
+    plot_ly(data = anonasc_numerico) %>%
+      add_trace(x = ~ano_categoria, y = ~ativos_e_indigenas, name = "Ativos e Indígenas",
+                type = "scatter", mode = "lines+markers",
+                line = list(color = '#e74c3c', width = 2),
+                marker = list(color = '#e74c3c', size = 6)) %>%
+      add_trace(x = ~ano_categoria, y = ~somente_ativos, name = "Somente Ativos",
+                type = "scatter", mode = "lines+markers",
+                line = list(color = '#3498db', width = 2),
+                marker = list(color = '#3498db', size = 6)) %>%
+      layout(title = "Nascimentos: Ativos e Indígenas vs Somente Ativos",
+             xaxis = list(
+               title = "Ano",
+               tickangle = 45,
+               tickvals = anonasc_numerico$ano_categoria,
+               ticktext = as.character(as.integer(anonasc_numerico$ano_categoria)),
+               tickfont = list(size = 9)
+             ),
+             yaxis = list(title = "Registros", tickformat = ",.0f"),
              legend = list(orientation = "h", y = -0.15),
              hovermode = "x unified")
   })
@@ -925,6 +753,7 @@ server <- function(input, output, session) {
   # Filtro DSEI - Nascimentos
   output$filtro_dsei_nascimentos <- renderUI({
     dsei_choices <- nascimentos_dsei_calc %>%
+      filter(!is.na(ano_num), ano_num >= 2000) %>%
       distinct(ds_dsei) %>%
       pull(ds_dsei) %>%
       sort()
@@ -935,7 +764,7 @@ server <- function(input, output, session) {
                    options = list(placeholder = 'Digite para buscar'))
   })
   
-  # Tabela DSEI - Nascimentos
+  # Tabela DSEI - Nascimentos (REATIVA)
   output$nascimentos_dsei_table <- renderDT({
     dsei_selecionado <- input$nascimentos_dsei_select
     
@@ -943,30 +772,57 @@ server <- function(input, output, session) {
       return(NULL)
     }
     
+    # Consolidar anos < 2000 em "< 2000" e ordenar corretamente
     nascimentos_dsei_resumido <- nascimentos_dsei_calc %>%
       filter(ds_dsei == dsei_selecionado) %>%
-      select(ds_dsei, ano_nascimento, frequencia_ativos, frequencia_ativos_indigenas,
-             diferenca_nao_indigenas, perc_total_ativos, perc_total_ativ_indig)
+      mutate(ano_nascimento = ifelse(ano_num < 2000, "< 2000", ano_nascimento)) %>%
+      group_by(ds_dsei, ano_nascimento) %>%
+      summarise(
+        frequencia_ativos_indigenas = sum(frequencia_ativos_indigenas, na.rm = TRUE),
+        frequencia_ativos = sum(frequencia_ativos, na.rm = TRUE),
+        .groups = "drop"
+      ) %>%
+      mutate(
+        diferenca_nao_indigenas = frequencia_ativos - frequencia_ativos_indigenas,
+        ordem = ifelse(ano_nascimento == "< 2000", 0, as.numeric(ano_nascimento))
+      ) %>%
+      group_by(ds_dsei) %>%
+      mutate(
+        perc_total_ativ_indig = round(100 * frequencia_ativos_indigenas / sum(frequencia_ativos_indigenas, na.rm = TRUE), 2),
+        perc_total_ativos = round(100 * frequencia_ativos / sum(frequencia_ativos, na.rm = TRUE), 2)
+      ) %>%
+      ungroup() %>%
+      arrange(ordem) %>%
+      mutate(
+        crescimento_abs_ativos = frequencia_ativos - lag(frequencia_ativos),
+        crescimento_abs_ativ_indig = frequencia_ativos_indigenas - lag(frequencia_ativos_indigenas),
+        crescimento_perc_ativos = round((frequencia_ativos - lag(frequencia_ativos)) / lag(frequencia_ativos) * 100, 2),
+        crescimento_perc_ativ_indig = round((frequencia_ativos_indigenas - lag(frequencia_ativos_indigenas)) / lag(frequencia_ativos_indigenas) * 100, 2)
+      ) %>%
+      select(ds_dsei, ano_nascimento, frequencia_ativos_indigenas, frequencia_ativos,
+             diferenca_nao_indigenas, perc_total_ativ_indig, perc_total_ativos,
+             crescimento_perc_ativos, crescimento_perc_ativ_indig)
     
     datatable(nascimentos_dsei_resumido,
-              options = list(
-                language = list(url = '//cdn.datatables.net/plug-ins/1.13.4/i18n/pt-BR.json'),
-                dom = 'Bfrtip',
-                buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
-                scrollY = "300px",
-                scrollCollapse = TRUE,
-                scrollX = TRUE,
-                paging = FALSE
-              ),
-              extensions = c('Buttons', 'Scroller'),
-              rownames = FALSE,
-              colnames = c("DSEI", "Ano", "Só Ativos", "Ativ. Indig.", "Diferença", "% Só Ativos", "% Ativ. Indig.")
+      options = list(
+        language = list(url = '//cdn.datatables.net/plug-ins/1.13.4/i18n/pt-BR.json'),
+        dom = 'Bfrtip',
+        buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+        scrollY = "300px",
+        scrollCollapse = TRUE,
+        scrollX = TRUE,
+        paging = FALSE
+      ),
+      extensions = c('Buttons', 'Scroller'),
+      rownames = FALSE,
+      colnames = c("DSEI", "Ano", "Ativ. Indig.", "Ativos", "Diferença", "% Indig.", "% Ativos", "Cresc. % Ativos", "Cresc. % Indig.")
     ) %>%
       formatRound(columns = c(3:5), digits = 0, mark = ".") %>%
-      formatRound(columns = c(6:7), digits = 2)
+      formatRound(columns = c(6:9), digits = 2) %>%
+      formatStyle(2, target = 'row', backgroundColor = styleEqual("< 2000", '#ffcccc'))
   })
   
-  # Gráfico DSEI - Nascimentos
+  # Gráfico DSEI - Nascimentos (REATIVO)
   output$nascimentos_dsei_plot <- renderPlotly({
     dsei_selecionado <- input$nascimentos_dsei_select
     
@@ -975,7 +831,7 @@ server <- function(input, output, session) {
     }
     
     dados <- nascimentos_dsei_calc %>%
-      filter(ds_dsei == dsei_selecionado)
+      filter(!is.na(ano_num), ano_num >= 2000, ds_dsei == dsei_selecionado)
     
     if (nrow(dados) == 0) {
       return(plotly_empty() %>% layout(title = "Sem dados disponíveis"))
@@ -986,56 +842,68 @@ server <- function(input, output, session) {
                 type = "scatter", mode = "lines+markers",
                 line = list(color = '#2980b9', width = 2),
                 marker = list(size = 5)) %>%
-      add_trace(x = ~ano_num, y = ~frequencia_ativos, name = "Somente Ativos",
+      add_trace(x = ~ano_num, y = ~frequencia_ativos, name = "Ativos",
                 type = "scatter", mode = "lines+markers",
                 line = list(color = '#e74c3c', width = 2, dash = "dash"),
                 marker = list(size = 5)) %>%
       layout(title = paste("Nascimentos -", dsei_selecionado),
              xaxis = list(title = "Ano", dtick = 5),
-             yaxis = list(title = "Nascimentos", tickformat = ",.0f"),
+             yaxis = list(title = "Registros", tickformat = ",.0f"),
              legend = list(orientation = "h", y = -0.15),
              hovermode = "x unified")
   })
   
   # ============================================
-  # ÓBITOS
+  # ÓBITOS (ADAPTADO)
   # ============================================
   
   output$obitos_ano_table <- renderDT({
-    datatable(obitos_ano_table,
-              options = list(
-                language = list(url = '//cdn.datatables.net/plug-ins/1.13.4/i18n/pt-BR.json'),
-                dom = 'Bfrtip',
-                buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
-                scrollY = "300px",
-                scrollCollapse = TRUE,
-                scrollX = TRUE,
-                paging = FALSE
-              ),
-              extensions = c('Buttons', 'Scroller'),
-              rownames = FALSE,
-              colnames = c("Ano", "Só Ativos", "Ativ. Indig.", "Diferença", "% Indig.", "% Ativos")
+    # Reordenar colunas: Somente Ativos primeiro, depois Ativos e Indígenas
+    tabela_obitos <- obitos_ano_table %>%
+      select(ano_categoria, somente_ativos, ativos_e_indigenas, diferenca, perc_col_somente_ativos, perc_col_ativos_e_indigenas)
+    
+    datatable(tabela_obitos,
+      options = list(
+        language = list(url = '//cdn.datatables.net/plug-ins/1.13.4/i18n/pt-BR.json'),
+        dom = 'Bfrtip',
+        buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+        scrollY = "300px",
+        scrollCollapse = TRUE,
+        scrollX = TRUE,
+        paging = FALSE
+      ),
+      extensions = c('Buttons', 'Scroller'),
+      rownames = FALSE,
+      colnames = c("Ano", "Somente Ativos", "Ativos e Indígenas", "Diferença", "% Só Ativos", "% Ativ. Indig.")
     ) %>%
       formatRound(columns = c(2:4), digits = 0, mark = ".") %>%
-      formatRound(columns = c(5:6), digits = 2)
+      formatRound(columns = c(5:6), digits = 2) %>%
+      formatStyle(1, target = 'row', backgroundColor = styleEqual("< 2000", '#ffcccc'))
   })
   
   output$obitos_ano_plot <- renderPlotly({
     obitos_numerico <- obitos_ano_calc %>%
-      filter(ano_categoria != "Sem informação") %>%
-      mutate(ano = as.numeric(ano_categoria))
+      filter(ano_categoria != "< 2000") %>%
+      mutate(ano_categoria = as.numeric(ano_categoria)) %>%
+      arrange(ano_categoria)
     
-    plot_ly(obitos_numerico) %>%
-      add_trace(x = ~ano, y = ~ativos_e_indigenas, name = "Ativos e Indígenas",
-                type = "scatter", mode = "lines", fill = 'tozeroy',
-                fillcolor = 'rgba(231, 76, 60, 0.3)',
-                line = list(color = '#e74c3c', width = 2)) %>%
-      add_trace(x = ~ano, y = ~somente_ativos, name = "Somente Ativos",
-                type = "scatter", mode = "lines", fill = 'tonexty',
-                fillcolor = 'rgba(52, 152, 219, 0.3)',
-                line = list(color = '#3498db', width = 2)) %>%
-      layout(title = "Evolução de Óbitos",
-             xaxis = list(title = "Ano", dtick = 2),
+    plot_ly(data = obitos_numerico) %>%
+      add_trace(x = ~ano_categoria, y = ~somente_ativos, name = "Somente Ativos",
+                type = "scatter", mode = "lines+markers",
+                line = list(color = '#3498db', width = 2),
+                marker = list(color = '#3498db', size = 6)) %>%
+      add_trace(x = ~ano_categoria, y = ~ativos_e_indigenas, name = "Ativos e Indígenas",
+                type = "scatter", mode = "lines+markers",
+                line = list(color = '#e74c3c', width = 2),
+                marker = list(color = '#e74c3c', size = 6)) %>%
+      layout(title = "Óbitos: Ativos e Indígenas vs Somente Ativos",
+             xaxis = list(
+               title = "Ano",
+               tickangle = 45,
+               tickvals = obitos_numerico$ano_categoria,
+               ticktext = as.character(as.integer(obitos_numerico$ano_categoria)),
+               tickfont = list(size = 9)
+             ),
              yaxis = list(title = "Óbitos", tickformat = ",.0f"),
              legend = list(orientation = "h", y = -0.15),
              hovermode = "x unified")
@@ -1054,7 +922,7 @@ server <- function(input, output, session) {
                    options = list(placeholder = 'Digite para buscar'))
   })
   
-  # Tabela DSEI - Óbitos
+  # Tabela DSEI - Óbitos (REATIVA - ADAPTADA)
   output$obitos_dsei_table <- renderDT({
     dsei_selecionado <- input$obitos_dsei_select
     
@@ -1062,6 +930,7 @@ server <- function(input, output, session) {
       return(NULL)
     }
     
+    # Consolidar anos < 2000 em "< 2000" e ordenar corretamente
     obitos_dsei_resumido <- obitos_dsei_calc %>%
       filter(ds_dsei == dsei_selecionado) %>%
       mutate(ano_obito = ifelse(ano_num == 0, "< 2000", ano_obito)) %>%
@@ -1093,25 +962,25 @@ server <- function(input, output, session) {
              crescimento_perc_ativos, crescimento_perc_indigenas)
     
     datatable(obitos_dsei_resumido,
-              options = list(
-                language = list(url = '//cdn.datatables.net/plug-ins/1.13.4/i18n/pt-BR.json'),
-                dom = 'Bfrtip',
-                buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
-                scrollY = "300px",
-                scrollCollapse = TRUE,
-                scrollX = TRUE,
-                paging = FALSE
-              ),
-              extensions = c('Buttons', 'Scroller'),
-              rownames = FALSE,
-              colnames = c("DSEI", "Ano", "Só Ativos", "Ativ. Indig.", "Diferença", "% Só Ativos", "% Ativ. Indig.", "Cresc. % Ativos", "Cresc. % Indig.")
+      options = list(
+        language = list(url = '//cdn.datatables.net/plug-ins/1.13.4/i18n/pt-BR.json'),
+        dom = 'Bfrtip',
+        buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+        scrollY = "300px",
+        scrollCollapse = TRUE,
+        scrollX = TRUE,
+        paging = FALSE
+      ),
+      extensions = c('Buttons', 'Scroller'),
+      rownames = FALSE,
+      colnames = c("DSEI", "Ano", "Só Ativos", "Ativ. Indig.", "Diferença", "% Só Ativos", "% Ativ. Indig.", "Cresc. % Ativos", "Cresc. % Indig.")
     ) %>%
       formatRound(columns = c(3:5), digits = 0, mark = ".") %>%
       formatRound(columns = c(6:9), digits = 2) %>%
       formatStyle(2, target = 'row', backgroundColor = styleEqual("< 2000", '#ffcccc'))
   })
   
-  # Gráfico DSEI - Óbitos
+  # Gráfico DSEI - Óbitos (REATIVO - ADAPTADO)
   output$obitos_dsei_plot <- renderPlotly({
     dsei_selecionado <- input$obitos_dsei_select
     
@@ -1148,18 +1017,18 @@ server <- function(input, output, session) {
   
   output$populacao_ano_table <- renderDT({
     datatable(populacao_calc,
-              options = list(
-                language = list(url = '//cdn.datatables.net/plug-ins/1.13.4/i18n/pt-BR.json'),
-                dom = 'Bfrtip',
-                buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
-                scrollY = "300px",
-                scrollCollapse = TRUE,
-                scrollX = TRUE,
-                paging = FALSE
-              ),
-              extensions = c('Buttons', 'Scroller'),
-              rownames = FALSE,
-              colnames = c("Ano", "Ativ. Indig.", "Só Ativos", "Diferença", "% Indig.", "% Ativos", "Cresc. Abs. Indig.", "Cresc. Abs. Ativos", "Cresc. % Indig.", "Cresc. % Ativos")
+      options = list(
+        language = list(url = '//cdn.datatables.net/plug-ins/1.13.4/i18n/pt-BR.json'),
+        dom = 'Bfrtip',
+        buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+        scrollY = "300px",
+        scrollCollapse = TRUE,
+        scrollX = TRUE,
+        paging = FALSE
+      ),
+      extensions = c('Buttons', 'Scroller'),
+      rownames = FALSE,
+      colnames = c("Ano", "Ativ. Indig.", "Só Ativos", "Diferença", "% Indig.", "% Ativos", "Cresc. Abs. Indig.", "Cresc. Abs. Ativos", "Cresc. % Indig.", "Cresc. % Ativos")
     ) %>%
       formatRound(columns = c(2:4, 7:8), digits = 0, mark = ".") %>%
       formatRound(columns = c(5:6, 9:10), digits = 2)
@@ -1199,7 +1068,7 @@ server <- function(input, output, session) {
                    options = list(placeholder = 'Digite para buscar'))
   })
   
-  # Tabela DSEI - População
+  # Tabela DSEI - População (REATIVA)
   output$populacao_dsei_table <- renderDT({
     dsei_selecionado <- input$populacao_dsei_select
     
@@ -1213,24 +1082,24 @@ server <- function(input, output, session) {
              crescimento_perc_ativos_indigenas, crescimento_perc_somente_ativos)
     
     datatable(populacao_dsei_resumido,
-              options = list(
-                language = list(url = '//cdn.datatables.net/plug-ins/1.13.4/i18n/pt-BR.json'),
-                dom = 'Bfrtip',
-                buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
-                scrollY = "300px",
-                scrollCollapse = TRUE,
-                scrollX = TRUE,
-                paging = FALSE
-              ),
-              extensions = c('Buttons', 'Scroller'),
-              rownames = FALSE,
-              colnames = c("DSEI", "Ano", "Ativ. Indig.", "Só Ativos", "Diferença", "Cresc. % Indig.", "Cresc. % Ativos")
+      options = list(
+        language = list(url = '//cdn.datatables.net/plug-ins/1.13.4/i18n/pt-BR.json'),
+        dom = 'Bfrtip',
+        buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+        scrollY = "300px",
+        scrollCollapse = TRUE,
+        scrollX = TRUE,
+        paging = FALSE
+      ),
+      extensions = c('Buttons', 'Scroller'),
+      rownames = FALSE,
+      colnames = c("DSEI", "Ano", "Ativ. Indig.", "Só Ativos", "Diferença", "Cresc. % Indig.", "Cresc. % Ativos")
     ) %>%
       formatRound(columns = c(3:5), digits = 0, mark = ".") %>%
       formatRound(columns = c(6:7), digits = 2)
   })
   
-  # Gráfico DSEI - População
+  # Gráfico DSEI - População (REATIVO)
   output$populacao_dsei_plot <- renderPlotly({
     dsei_selecionado <- input$populacao_dsei_select
     
@@ -1262,7 +1131,7 @@ server <- function(input, output, session) {
   })
   
   # ============================================
-  # TABULADOR - COM NOVO LAYOUT DE FILTROS
+  # TABULADOR
   # ============================================
   
   # Impede escolher a mesma variável em linha e coluna
@@ -1278,91 +1147,49 @@ server <- function(input, output, session) {
     updateSelectInput(session, "tab_estrato", choices = escolhas_estrato, selected = "nenhuma")
   })
   
-  # Painel de filtros dinâmico com novo layout
-  output$tab_filtros_ui <- renderUI({
-    div(class = "tab_filtros_wrapper",
-        div(class = "filtros-header", "Filtros"),
-        tagList(
-          lapply(vars_tabulador, function(v) {
-            # Ordenar choices corretamente para idade_cat
-            if (v == "idade_cat") {
-              choices_list <- intersect(idade_ordem, unique(tabulador_dados[[v]]))
-            } else {
-              choices_list <- sort(unique(tabulador_dados[[v]]))
-            }
-            
-            # Criar ID único para os botões
-            btn_select_id <- paste0("btn_select_", v)
-            btn_remove_id <- paste0("btn_remove_", v)
-            
-            div(class = "filtro-container",
-                div(class = "filtro-titulo", v),
-                div(class = "filtro-opcoes",
-                    lapply(choices_list, function(choice) {
-                      div(class = "checkbox-item",
-                          # Usar o argumento 'label' nativo do Shiny deixa o HTML mais limpo
-                          checkboxInput(paste0("tab_filtro_", v, "_", make.names(choice)), 
-                                        label = choice, value = TRUE)
-                      )
-                    })
-                ),
-                div(class = "filtro-botoes",
-                    actionButton(btn_select_id, "Selecionar Tudo", class = "btn-select-all"),
-                    actionButton(btn_remove_id, "Remover Tudo", class = "btn-remove-all")
-                )
-            )
-          })
-        )
-    )
-  })
+
   
-  # Observadores para os botões "Selecionar Tudo" e "Remover Tudo"
-  lapply(vars_tabulador, function(v) {
-    btn_select_id <- paste0("btn_select_", v)
-    btn_remove_id <- paste0("btn_remove_", v)
-    
-    # Ordenar choices corretamente
-    if (v == "idade_cat") {
-      choices_list <- intersect(idade_ordem, unique(tabulador_dados[[v]]))
-    } else {
-      choices_list <- sort(unique(tabulador_dados[[v]]))
-    }
-    
-    # Selecionar tudo
-    observeEvent(input[[btn_select_id]], {
-      lapply(choices_list, function(choice) {
-        updateCheckboxInput(session, paste0("tab_filtro_", v, "_", make.names(choice)), value = TRUE)
+  # Painel de filtros dinâmico com pickerInput
+  output$tab_filtros_ui <- renderUI({
+    tagList(
+      lapply(vars_tabulador, function(v) {
+        # Ordenar choices corretamente para idade_cat
+        if (v == "idade_cat") {
+          choices_list <- intersect(idade_ordem, unique(tabulador_dados[[v]]))
+        } else {
+          choices_list <- sort(unique(tabulador_dados[[v]]))
+        }
+        tagList(
+          h5(v),
+          pickerInput(
+            inputId = paste0("tab_filtro_", v),
+            label = NULL,
+            choices = choices_list,
+            selected = choices_list,
+            multiple = TRUE,
+            options = list(
+              `actions-box` = TRUE,
+              `deselect-all-text` = "Remover Tudo",
+              `select-all-text` = "Selecionar Tudo",
+              `none-selected-text` = "Nenhum selecionado",
+              size = 10,
+              `live-search` = TRUE,
+              `live-search-placeholder` = "Buscar..."
+            )
+          ),
+          hr()
+        )
       })
-    })
-    
-    # Remover tudo
-    observeEvent(input[[btn_remove_id]], {
-      lapply(choices_list, function(choice) {
-        updateCheckboxInput(session, paste0("tab_filtro_", v, "_", make.names(choice)), value = FALSE)
-      })
-    })
+    )
   })
   
   # Dados filtrados
   tab_dados_filtrados <- reactive({
     df <- tabulador_dados
     for (v in vars_tabulador) {
-      # Ordenar choices corretamente
-      if (v == "idade_cat") {
-        choices_list <- intersect(idade_ordem, unique(tabulador_dados[[v]]))
-      } else {
-        choices_list <- sort(unique(tabulador_dados[[v]]))
-      }
-      
-      # Coletar valores selecionados
-      sel <- sapply(choices_list, function(choice) {
-        input[[paste0("tab_filtro_", v, "_", make.names(choice))]]
-      })
-      sel <- choices_list[sel]
-      
-      if (length(sel) > 0) {
-        df <- df[df[[v]] %in% sel, ]
-      }
+      sel <- input[[paste0("tab_filtro_", v)]]
+      req(sel)
+      df <- df[df[[v]] %in% sel, ]
     }
     df
   })

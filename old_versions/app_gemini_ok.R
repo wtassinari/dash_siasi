@@ -1,12 +1,50 @@
 # ============================================
-# DASHBOARD SIASI - VERSÃO 7.1
+# DASHBOARD SIASI - VERSÃO 7.1 (COM SIDEBAR + FILTROS REDUZIDOS)
 # ============================================
-library(tidyverse)
-library(tidyr)
-library(DT)
-library(scales)
-library(shiny)
-library(plotly)
+
+# ============================================
+# INSTALAR DEPENDÊNCIAS FALTANTES (FALLBACK)
+# ============================================
+required_packages <- c(
+  'tidyverse', 'tidyr', 'DT', 'scales', 'shiny', 'plotly',
+  'broom', 'cli', 'dbplyr', 'dplyr', 'dtplyr', 'forcats',
+  'ggplot2', 'haven', 'hms', 'httr', 'jsonlite', 'lubridate',
+  'magrittr', 'purrr', 'readr', 'readxl', 'rlang', 'stringr',
+  'tibble', 'httpuv', 'htmltools', 'promises',
+  'glue', 'lifecycle', 'vctrs', 'R6', 'bslib', 'crosstalk',
+  'htmlwidgets', 'jquerylib', 'base64enc', 'digest', 'fastmap',
+  'fontawesome', 'mime', 'sourcetools', 'later', 'Rcpp', 'withr',
+  'cachem', 'memoise', 'sass', 'curl', 'openssl', 'yaml', 'fs',
+  'rappdirs', 'pillar', 'gtable', 'isoband', 'colorspace', 'fansi',
+  'pkgconfig', 'utf8', 'stringi', 'data.table', 'lazyeval', 'RColorBrewer',
+  'viridisLite', 'farver', 'labeling', 'munsell', 'ellipsis', 'generics',
+  'gargle', 'uuid', 'cellranger', 'timechange', 'clipr', 'crayon',
+  'tzdb', 'callr', 'knitr', 'rmarkdown', 'rstudioapi', 'selectr',
+  'processx', 'evaluate', 'highr', 'xfun', 'tinytex', 'ps', 'rematch'
+)
+
+new_packages <- required_packages[
+  !required_packages %in% installed.packages()[, "Package"]
+]
+
+if (length(new_packages) > 0) {
+  message("Instalando dependências faltantes: ", paste(new_packages, collapse = ", "))
+  tryCatch({
+    install.packages(new_packages, repos = "https://cloud.r-project.org", quiet = TRUE)
+  }, error = function(e) {
+    warning("Erro ao instalar dependências: ", e$message)
+  })
+}
+
+suppressWarnings({
+  library(tidyverse)
+  library(tidyr)
+  library(DT)
+  library(scales)
+  library(shiny)
+  library(plotly)
+})
+
 # ============================================
 # CONFIGURAÇÃO DE SENHA
 # ============================================
@@ -515,10 +553,10 @@ dashboard_ui <- fluidPage(
         height: 16px;
         flex-shrink: 0;
       }
-      /* Destaque visual (preto e negrito) quando marcado */
+      /* Destaque visual (azul e negrito) quando marcado */
       .checkbox-item input[type='checkbox']:checked + span {
         font-weight: 700;
-        color: #000000;
+        color: #2196F3;
       }
       
       /* Botões de ação */
@@ -895,7 +933,7 @@ server <- function(input, output, session) {
               ),
               extensions = c('Buttons', 'Scroller'),
               rownames = FALSE,
-              colnames = c("Ano", "Ativ. Indig.", "Só Ativos", "Diferença", "% Indig.", "% Ativos")
+              colnames = c("Ano", "Só Ativos", "Ativ. Indig.", "Diferença", "% Indig.", "% Ativos")
     ) %>%
       formatRound(columns = c(2:4), digits = 0, mark = ".") %>%
       formatRound(columns = c(5:6), digits = 2)
