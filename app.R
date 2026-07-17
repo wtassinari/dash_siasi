@@ -1115,7 +1115,7 @@ server <- function(input, output, session) {
   
 
   
-  # Painel de filtros dinâmico com pickerInput
+  # Painel de filtros dinâmico com checkboxGroupInput (nativo do Shiny)
   output$tab_filtros_ui <- renderUI({
     tagList(
       lapply(vars_tabulador, function(v) {
@@ -1127,21 +1127,12 @@ server <- function(input, output, session) {
         }
         tagList(
           h5(v),
-          pickerInput(
+          checkboxGroupInput(
             inputId = paste0("tab_filtro_", v),
             label = NULL,
             choices = choices_list,
             selected = choices_list,
-            multiple = TRUE,
-            options = list(
-              `actions-box` = TRUE,
-              `deselect-all-text` = "Remover Tudo",
-              `select-all-text` = "Selecionar Tudo",
-              `none-selected-text` = "Nenhum selecionado",
-              size = 10,
-              `live-search` = TRUE,
-              `live-search-placeholder` = "Buscar..."
-            )
+            inline = FALSE
           ),
           hr()
         )
