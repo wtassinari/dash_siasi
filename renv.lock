@@ -1,6 +1,6 @@
 {
   "R": {
-    "Version": "4.6.1",
+    "Version": "4.3.0",
     "Repositories": [
       {
         "Name": "CRAN",
@@ -9,712 +9,341 @@
     ]
   },
   "Packages": {
-    "base64enc": {
-      "Package": "base64enc",
-      "Version": "0.1-3",
+    "rlang": {
+      "Package": "rlang",
+      "Version": "1.1.1",
       "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-base64enc"
-    },
-    "broom": {
-      "Package": "broom",
-      "Version": "1.0.5",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-broom"
-    },
-    "bslib": {
-      "Package": "bslib",
-      "Version": "0.7.0",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-bslib"
-    },
-    "cachem": {
-      "Package": "cachem",
-      "Version": "1.1.0",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-cachem"
-    },
-    "callr": {
-      "Package": "callr",
-      "Version": "3.7.6",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-callr"
-    },
-    "cellranger": {
-      "Package": "cellranger",
-      "Version": "1.1.0",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-cellranger"
+      "Repository": "CRAN"
     },
     "cli": {
       "Package": "cli",
-      "Version": "3.6.2",
+      "Version": "3.6.1",
       "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-cli"
-    },
-    "clipr": {
-      "Package": "clipr",
-      "Version": "0.8.0",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-clipr"
-    },
-    "colorspace": {
-      "Package": "colorspace",
-      "Version": "2.1-0",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-colorspace"
-    },
-    "conflicted": {
-      "Package": "conflicted",
-      "Version": "1.2.0",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-conflicted"
-    },
-    "cpp11": {
-      "Package": "cpp11",
-      "Version": "0.4.7",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-cpp11"
-    },
-    "crayon": {
-      "Package": "crayon",
-      "Version": "1.5.2",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-crayon"
-    },
-    "crosstalk": {
-      "Package": "crosstalk",
-      "Version": "1.2.1",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-crosstalk"
-    },
-    "curl": {
-      "Package": "curl",
-      "Version": "5.2.1",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-curl"
-    },
-    "data.table": {
-      "Package": "data.table",
-      "Version": "1.14.10",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-data.table"
-    },
-    "DBI": {
-      "Package": "DBI",
-      "Version": "1.3.0",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-DBI"
-    },
-    "dbplyr": {
-      "Package": "dbplyr",
-      "Version": "2.4.0",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-dbplyr"
-    },
-    "digest": {
-      "Package": "digest",
-      "Version": "0.6.35",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-digest"
-    },
-    "dplyr": {
-      "Package": "dplyr",
-      "Version": "1.1.4",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-dplyr"
-    },
-    "DT": {
-      "Package": "DT",
-      "Version": "0.34.0",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-DT"
-    },
-    "dtplyr": {
-      "Package": "dtplyr",
-      "Version": "1.3.1",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-dtplyr"
-    },
-    "ellipsis": {
-      "Package": "ellipsis",
-      "Version": "0.3.2",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-ellipsis"
-    },
-    "evaluate": {
-      "Package": "evaluate",
-      "Version": "0.23",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-evaluate"
-    },
-    "fansi": {
-      "Package": "fansi",
-      "Version": "1.0.6",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-fansi"
-    },
-    "farver": {
-      "Package": "farver",
-      "Version": "2.1.1",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-farver"
-    },
-    "fastmap": {
-      "Package": "fastmap",
-      "Version": "1.2.0",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-fastmap"
-    },
-    "fontawesome": {
-      "Package": "fontawesome",
-      "Version": "0.5.2",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-fontawesome"
-    },
-    "forcats": {
-      "Package": "forcats",
-      "Version": "1.0.0",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-forcats"
-    },
-    "fs": {
-      "Package": "fs",
-      "Version": "1.6.4",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-fs"
-    },
-    "gargle": {
-      "Package": "gargle",
-      "Version": "1.5.2",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-gargle"
-    },
-    "generics": {
-      "Package": "generics",
-      "Version": "0.1.3",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-generics"
-    },
-    "ggplot2": {
-      "Package": "ggplot2",
-      "Version": "3.5.1",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-ggplot2"
+      "Repository": "CRAN"
     },
     "glue": {
       "Package": "glue",
-      "Version": "1.7.0",
+      "Version": "1.6.2",
       "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-glue"
-    },
-    "googledrive": {
-      "Package": "googledrive",
-      "Version": "2.1.1",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-googledrive"
-    },
-    "googlesheets4": {
-      "Package": "googlesheets4",
-      "Version": "1.1.1",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-googlesheets4"
-    },
-    "gtable": {
-      "Package": "gtable",
-      "Version": "0.3.4",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-gtable"
-    },
-    "haven": {
-      "Package": "haven",
-      "Version": "2.5.4",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-haven"
-    },
-    "highr": {
-      "Package": "highr",
-      "Version": "0.10",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-highr"
-    },
-    "hms": {
-      "Package": "hms",
-      "Version": "1.1.3",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-hms"
-    },
-    "htmltools": {
-      "Package": "htmltools",
-      "Version": "0.5.8",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-htmltools"
-    },
-    "htmlwidgets": {
-      "Package": "htmlwidgets",
-      "Version": "1.6.4",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-htmlwidgets"
-    },
-    "httr": {
-      "Package": "httr",
-      "Version": "1.4.7",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-httr"
-    },
-    "httpuv": {
-      "Package": "httpuv",
-      "Version": "1.6.15",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-httpuv"
-    },
-    "isoband": {
-      "Package": "isoband",
-      "Version": "0.2.7",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-isoband"
-    },
-    "jquerylib": {
-      "Package": "jquerylib",
-      "Version": "0.1.4",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-jquerylib"
-    },
-    "jsonlite": {
-      "Package": "jsonlite",
-      "Version": "1.8.8",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-jsonlite"
-    },
-    "knitr": {
-      "Package": "knitr",
-      "Version": "1.46",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-knitr"
-    },
-    "labeling": {
-      "Package": "labeling",
-      "Version": "0.4.3",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-labeling"
-    },
-    "later": {
-      "Package": "later",
-      "Version": "1.3.2",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-later"
-    },
-    "lazyeval": {
-      "Package": "lazyeval",
-      "Version": "0.2.2",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-lazyeval"
+      "Repository": "CRAN"
     },
     "lifecycle": {
       "Package": "lifecycle",
-      "Version": "1.0.4",
+      "Version": "1.0.3",
       "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-lifecycle"
+      "Repository": "CRAN"
     },
-    "lubridate": {
-      "Package": "lubridate",
-      "Version": "1.9.3",
+    "vctrs": {
+      "Package": "vctrs",
+      "Version": "0.6.3",
       "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-lubridate"
-    },
-    "magrittr": {
-      "Package": "magrittr",
-      "Version": "2.0.3",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-magrittr"
-    },
-    "memoise": {
-      "Package": "memoise",
-      "Version": "2.0.1",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-memoise"
-    },
-    "mime": {
-      "Package": "mime",
-      "Version": "0.12",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-mime"
-    },
-    "modelr": {
-      "Package": "modelr",
-      "Version": "0.1.11",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-modelr"
-    },
-    "munsell": {
-      "Package": "munsell",
-      "Version": "0.5.1",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-munsell"
-    },
-    "openssl": {
-      "Package": "openssl",
-      "Version": "2.1.1",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-openssl"
+      "Repository": "CRAN"
     },
     "pillar": {
       "Package": "pillar",
       "Version": "1.9.0",
       "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-pillar"
+      "Repository": "CRAN"
     },
-    "pkgconfig": {
-      "Package": "pkgconfig",
-      "Version": "2.0.3",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-pkgconfig"
-    },
-    "plotly": {
-      "Package": "plotly",
-      "Version": "4.10.4",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-plotly"
-    },
-    "processx": {
-      "Package": "processx",
-      "Version": "3.8.4",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-processx"
-    },
-    "promises": {
-      "Package": "promises",
-      "Version": "1.3.0",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-promises"
-    },
-    "ps": {
-      "Package": "ps",
-      "Version": "1.7.6",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-ps"
-    },
-    "purrr": {
-      "Package": "purrr",
-      "Version": "1.0.2",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-purrr"
-    },
-    "R6": {
-      "Package": "R6",
-      "Version": "2.6.1",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-R6"
-    },
-    "rappdirs": {
-      "Package": "rappdirs",
-      "Version": "0.3.3",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-rappdirs"
-    },
-    "RColorBrewer": {
-      "Package": "RColorBrewer",
-      "Version": "1.1-3",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-RColorBrewer"
-    },
-    "Rcpp": {
-      "Package": "Rcpp",
-      "Version": "1.1.1",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-Rcpp"
-    },
-    "readr": {
-      "Package": "readr",
-      "Version": "2.1.5",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-readr"
-    },
-    "readxl": {
-      "Package": "readxl",
-      "Version": "1.4.3",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-readxl"
-    },
-    "rematch": {
-      "Package": "rematch",
-      "Version": "2.0.0",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-rematch"
-    },
-    "reprex": {
-      "Package": "reprex",
-      "Version": "2.1.0",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-reprex"
-    },
-    "rlang": {
-      "Package": "rlang",
-      "Version": "1.1.3",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-rlang"
-    },
-    "rmarkdown": {
-      "Package": "rmarkdown",
-      "Version": "2.27",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-rmarkdown"
-    },
-    "rstudioapi": {
-      "Package": "rstudioapi",
-      "Version": "0.16.0",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-rstudioapi"
-    },
-    "rvest": {
-      "Package": "rvest",
+    "fansi": {
+      "Package": "fansi",
       "Version": "1.0.4",
       "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-rvest"
+      "Repository": "CRAN"
     },
-    "sass": {
-      "Package": "sass",
-      "Version": "0.4.9",
+    "utf8": {
+      "Package": "utf8",
+      "Version": "1.2.3",
       "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-sass"
-    },
-    "scales": {
-      "Package": "scales",
-      "Version": "1.3.0",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-scales"
-    },
-    "selectr": {
-      "Package": "selectr",
-      "Version": "0.4-2",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-selectr"
-    },
-    "shiny": {
-      "Package": "shiny",
-      "Version": "1.9.1",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-shiny"
-    },
-    "shinydashboard": {
-      "Package": "shinydashboard",
-      "Version": "0.7.2",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-shinydashboard"
-    },
-    "shinyWidgets": {
-      "Package": "shinyWidgets",
-      "Version": "0.8.1",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-shinyWidgets"
-    },
-    "sourcetools": {
-      "Package": "sourcetools",
-      "Version": "0.1.7-1",
-      "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-sourcetools"
+      "Repository": "CRAN"
     },
     "stringi": {
       "Package": "stringi",
-      "Version": "1.8.3",
+      "Version": "1.7.12",
       "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-stringi"
+      "Repository": "CRAN"
     },
-    "stringr": {
-      "Package": "stringr",
-      "Version": "1.5.1",
+    "magrittr": {
+      "Package": "magrittr",
+      "Version": "2.0.3",
       "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-stringr"
+      "Repository": "CRAN"
+    },
+    "R6": {
+      "Package": "R6",
+      "Version": "2.5.1",
+      "Source": "Repository",
+      "Repository": "CRAN"
+    },
+    "ellipsis": {
+      "Package": "ellipsis",
+      "Version": "0.3.2",
+      "Source": "Repository",
+      "Repository": "CRAN"
+    },
+    "generics": {
+      "Package": "generics",
+      "Version": "0.1.3",
+      "Source": "Repository",
+      "Repository": "CRAN"
     },
     "tibble": {
       "Package": "tibble",
       "Version": "3.2.1",
       "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-tibble"
+      "Repository": "CRAN"
     },
     "tidyselect": {
       "Package": "tidyselect",
-      "Version": "1.2.1",
+      "Version": "1.2.0",
       "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-tidyselect"
+      "Repository": "CRAN"
     },
-    "tidyverse": {
-      "Package": "tidyverse",
-      "Version": "2.0.0",
+    "purrr": {
+      "Package": "purrr",
+      "Version": "1.0.1",
       "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-tidyverse"
+      "Repository": "CRAN"
+    },
+    "stringr": {
+      "Package": "stringr",
+      "Version": "1.5.0",
+      "Source": "Repository",
+      "Repository": "CRAN"
+    },
+    "forcats": {
+      "Package": "forcats",
+      "Version": "1.0.0",
+      "Source": "Repository",
+      "Repository": "CRAN"
+    },
+    "readr": {
+      "Package": "readr",
+      "Version": "2.1.4",
+      "Source": "Repository",
+      "Repository": "CRAN"
+    },
+    "readxl": {
+      "Package": "readxl",
+      "Version": "1.4.3",
+      "Source": "Repository",
+      "Repository": "CRAN"
+    },
+    "haven": {
+      "Package": "haven",
+      "Version": "2.5.3",
+      "Source": "Repository",
+      "Repository": "CRAN"
+    },
+    "jsonlite": {
+      "Package": "jsonlite",
+      "Version": "1.8.7",
+      "Source": "Repository",
+      "Repository": "CRAN"
+    },
+    "yaml": {
+      "Package": "yaml",
+      "Version": "2.3.7",
+      "Source": "Repository",
+      "Repository": "CRAN"
+    },
+    "curl": {
+      "Package": "curl",
+      "Version": "5.0.1",
+      "Source": "Repository",
+      "Repository": "CRAN"
+    },
+    "openssl": {
+      "Package": "openssl",
+      "Version": "2.1.0",
+      "Source": "Repository",
+      "Repository": "CRAN"
+    },
+    "httr": {
+      "Package": "httr",
+      "Version": "1.4.7",
+      "Source": "Repository",
+      "Repository": "CRAN"
+    },
+    "dplyr": {
+      "Package": "dplyr",
+      "Version": "1.1.2",
+      "Source": "Repository",
+      "Repository": "CRAN"
     },
     "tidyr": {
       "Package": "tidyr",
+      "Version": "1.3.0",
+      "Source": "Repository",
+      "Repository": "CRAN"
+    },
+    "dbplyr": {
+      "Package": "dbplyr",
+      "Version": "2.3.3",
+      "Source": "Repository",
+      "Repository": "CRAN"
+    },
+    "dtplyr": {
+      "Package": "dtplyr",
       "Version": "1.3.1",
       "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-tidyr"
+      "Repository": "CRAN"
     },
-    "timechange": {
-      "Package": "timechange",
-      "Version": "0.3.0",
+    "broom": {
+      "Package": "broom",
+      "Version": "1.0.5",
       "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-timechange"
+      "Repository": "CRAN"
     },
-    "tinytex": {
-      "Package": "tinytex",
-      "Version": "0.50",
+    "lubridate": {
+      "Package": "lubridate",
+      "Version": "1.9.2",
       "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-tinytex"
+      "Repository": "CRAN"
     },
-    "tzdb": {
-      "Package": "tzdb",
-      "Version": "0.4.0",
+    "hms": {
+      "Package": "hms",
+      "Version": "1.1.3",
       "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-tzdb"
+      "Repository": "CRAN"
     },
-    "utf8": {
-      "Package": "utf8",
-      "Version": "1.2.4",
+    "gtable": {
+      "Package": "gtable",
+      "Version": "0.3.3",
       "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-utf8"
+      "Repository": "CRAN"
     },
-    "uuid": {
-      "Package": "uuid",
-      "Version": "1.2-0",
+    "isoband": {
+      "Package": "isoband",
+      "Version": "0.2.7",
       "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-uuid"
+      "Repository": "CRAN"
     },
-    "vctrs": {
-      "Package": "vctrs",
-      "Version": "0.6.5",
+    "colorspace": {
+      "Package": "colorspace",
+      "Version": "2.1.0",
       "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-vctrs"
+      "Repository": "CRAN"
+    },
+    "farver": {
+      "Package": "farver",
+      "Version": "2.1.1",
+      "Source": "Repository",
+      "Repository": "CRAN"
+    },
+    "labeling": {
+      "Package": "labeling",
+      "Version": "0.4.3",
+      "Source": "Repository",
+      "Repository": "CRAN"
+    },
+    "munsell": {
+      "Package": "munsell",
+      "Version": "0.5.0",
+      "Source": "Repository",
+      "Repository": "CRAN"
+    },
+    "RColorBrewer": {
+      "Package": "RColorBrewer",
+      "Version": "1.1.3",
+      "Source": "Repository",
+      "Repository": "CRAN"
     },
     "viridisLite": {
       "Package": "viridisLite",
       "Version": "0.4.2",
       "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-viridisLite"
+      "Repository": "CRAN"
     },
-    "withr": {
-      "Package": "withr",
-      "Version": "3.0.0",
+    "ggplot2": {
+      "Package": "ggplot2",
+      "Version": "3.4.2",
       "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-withr"
+      "Repository": "CRAN"
     },
-    "xfun": {
-      "Package": "xfun",
-      "Version": "0.43",
+    "plotly": {
+      "Package": "plotly",
+      "Version": "4.10.2",
       "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-xfun"
+      "Repository": "CRAN"
     },
-    "xml2": {
-      "Package": "xml2",
-      "Version": "1.3.6",
+    "htmltools": {
+      "Package": "htmltools",
+      "Version": "0.5.6",
       "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-xml2"
+      "Repository": "CRAN"
     },
-    "yaml": {
-      "Package": "yaml",
-      "Version": "2.3.8",
+    "promises": {
+      "Package": "promises",
+      "Version": "1.2.1",
       "Source": "Repository",
-      "Repository": "CRAN",
-      "Hash": "sha256-yaml"
+      "Repository": "CRAN"
+    },
+    "httpuv": {
+      "Package": "httpuv",
+      "Version": "1.6.11",
+      "Source": "Repository",
+      "Repository": "CRAN"
+    },
+    "sourcetools": {
+      "Package": "sourcetools",
+      "Version": "0.1.7",
+      "Source": "Repository",
+      "Repository": "CRAN"
+    },
+    "later": {
+      "Package": "later",
+      "Version": "1.3.1",
+      "Source": "Repository",
+      "Repository": "CRAN"
+    },
+    "jquerylib": {
+      "Package": "jquerylib",
+      "Version": "0.1.4",
+      "Source": "Repository",
+      "Repository": "CRAN"
+    },
+    "bslib": {
+      "Package": "bslib",
+      "Version": "0.5.0",
+      "Source": "Repository",
+      "Repository": "CRAN"
+    },
+    "crosstalk": {
+      "Package": "crosstalk",
+      "Version": "1.2.0",
+      "Source": "Repository",
+      "Repository": "CRAN"
+    },
+    "htmlwidgets": {
+      "Package": "htmlwidgets",
+      "Version": "1.6.2",
+      "Source": "Repository",
+      "Repository": "CRAN"
+    },
+    "shiny": {
+      "Package": "shiny",
+      "Version": "1.7.4",
+      "Source": "Repository",
+      "Repository": "CRAN"
+    },
+    "DT": {
+      "Package": "DT",
+      "Version": "0.28",
+      "Source": "Repository",
+      "Repository": "CRAN"
+    },
+    "scales": {
+      "Package": "scales",
+      "Version": "1.2.1",
+      "Source": "Repository",
+      "Repository": "CRAN"
+    },
+    "tidyverse": {
+      "Package": "tidyverse",
+      "Version": "2.0.0",
+      "Source": "Repository",
+      "Repository": "CRAN"
     }
-  ]
+  }
 }

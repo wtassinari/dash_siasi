@@ -1,41 +1,66 @@
 # ============================================
-# DASHBOARD SIASI - VERSÃO 7.1 (COM SIDEBAR + FILTROS REDUZIDOS)
+# GERENCIAMENTO DE DEPENDÊNCIAS COM ORDEM CORRETA
 # ============================================
 
-# ============================================
-# INSTALAR DEPENDÊNCIAS FALTANTES (FALLBACK)
-# ============================================
-required_packages <- c(
-  'tidyverse', 'tidyr', 'DT', 'scales', 'shiny', 'plotly',
-  'broom', 'cli', 'dbplyr', 'dplyr', 'dtplyr', 'forcats',
-  'ggplot2', 'haven', 'hms', 'httr', 'jsonlite', 'lubridate',
-  'magrittr', 'purrr', 'readr', 'readxl', 'rlang', 'stringr',
-  'tibble', 'httpuv', 'htmltools', 'promises',
-  'glue', 'lifecycle', 'vctrs', 'R6', 'bslib', 'crosstalk',
-  'htmlwidgets', 'jquerylib', 'base64enc', 'digest', 'fastmap',
-  'fontawesome', 'mime', 'sourcetools', 'later', 'Rcpp', 'withr',
-  'cachem', 'memoise', 'sass', 'curl', 'openssl', 'yaml', 'fs',
-  'rappdirs', 'pillar', 'gtable', 'isoband', 'colorspace', 'fansi',
-  'pkgconfig', 'utf8', 'stringi', 'data.table', 'lazyeval', 'RColorBrewer',
-  'viridisLite', 'farver', 'labeling', 'munsell', 'ellipsis', 'generics',
-  'gargle', 'uuid', 'cellranger', 'timechange', 'clipr', 'crayon',
-  'tzdb', 'callr', 'knitr', 'rmarkdown', 'rstudioapi', 'selectr',
-  'processx', 'evaluate', 'highr', 'xfun', 'tinytex', 'ps', 'rematch'
-)
-
-new_packages <- required_packages[
-  !required_packages %in% installed.packages()[, "Package"]
-]
-
-if (length(new_packages) > 0) {
-  message("Instalando dependências faltantes: ", paste(new_packages, collapse = ", "))
-  tryCatch({
-    install.packages(new_packages, repos = "https://cloud.r-project.org", quiet = TRUE)
-  }, error = function(e) {
-    warning("Erro ao instalar dependências: ", e$message)
-  })
+# Funcao auxiliar para instalar pacotes com tratamento de erro
+install_if_needed <- function(pkg) {
+  if (!require(pkg, character.only = TRUE, quietly = TRUE)) {
+    tryCatch({
+      install.packages(pkg, repos = "https://cloud.r-project.org", quiet = TRUE)
+      require(pkg, character.only = TRUE, quietly = TRUE)
+    }, error = function(e) {
+      warning(sprintf("Falha ao instalar/carregar pacote '%s': %s", pkg, e$message))
+      return(FALSE)
+    })
+  }
+  return(TRUE)
 }
 
+# Dependencias em ordem de instalacao (base > intermediarias > principais)
+# Camada 1: Dependencias fundamentais
+base_deps <- c('rlang', 'cli', 'glue', 'lifecycle', 'vctrs', 'pillar', 'fansi', 
+               'utf8', 'stringi', 'magrittr', 'R6', 'ellipsis', 'generics')
+
+# Camada 2: Dependencias de dados e I/O
+data_deps <- c('tibble', 'tidyselect', 'purrr', 'stringr', 'forcats', 'readr', 
+               'readxl', 'haven', 'jsonlite', 'yaml', 'curl', 'openssl', 'httr')
+
+# Camada 3: Dependencias de manipulacao de dados
+manip_deps <- c('dplyr', 'tidyr', 'dbplyr', 'dtplyr', 'broom', 'lubridate', 'hms')
+
+# Camada 4: Dependencias de visualizacao
+viz_deps <- c('gtable', 'isoband', 'colorspace', 'farver', 'labeling', 'munsell', 
+              'RColorBrewer', 'viridisLite', 'ggplot2', 'plotly')
+
+# Camada 5: Dependencias de Shiny
+shiny_deps <- c('htmltools', 'promises', 'httpuv', 'sourcetools', 'later', 
+                'jquerylib', 'bslib', 'crosstalk', 'htmlwidgets', 'shiny')
+
+# Camada 6: Dependencias adicionais
+other_deps <- c('DT', 'scales', 'digest', 'base64enc', 'fastmap', 'cachem', 
+                'memoise', 'sass', 'fontawesome', 'mime', 'withr', 'Rcpp', 
+                'rappdirs', 'pkgconfig', 'data.table', 'lazyeval', 'gargle', 
+                'uuid', 'cellranger', 'timechange', 'clipr', 'crayon', 'tzdb', 
+                'callr', 'knitr', 'rmarkdown', 'rstudioapi', 'selectr', 
+                'processx', 'evaluate', 'highr', 'xfun', 'tinytex', 'ps', 'rematch')
+
+# Combinar todas as dependencias em ordem
+all_packages <- c(base_deps, data_deps, manip_deps, viz_deps, shiny_deps, other_deps)
+
+# Remover duplicatas mantendo a ordem
+all_packages <- all_packages[!duplicated(all_packages)]
+
+# Instalar pacotes em ordem
+message(sprintf("Verificando e instalando %d dependencias...", length(all_packages)))
+for (pkg in all_packages) {
+  if (!install_if_needed(pkg)) {
+    message(sprintf("  Aviso: Nao foi possivel instalar '%s'", pkg))
+  }
+}
+
+message("Todas as dependencias foram processadas.")
+
+# Carregar bibliotecas principais
 suppressWarnings({
   library(tidyverse)
   library(tidyr)
@@ -45,6 +70,7 @@ suppressWarnings({
   library(plotly)
 })
 
+message("Bibliotecas principais carregadas com sucesso.")
 # ============================================
 # CONFIGURAÇÃO DE SENHA
 # ============================================
