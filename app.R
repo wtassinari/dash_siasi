@@ -60,7 +60,7 @@ anonasc <- read.csv("frequencia_ano_nascimento.csv", sep=";", stringsAsFactors =
 anonasc <- anonasc %>%
   mutate(
     ano_categoria = as.character(ano_categoria),
-    ano_categoria = ifelse(ano_categoria == "Até 2000", "< 2000", ano_categoria)
+    ano_categoria = ifelse(ano_categoria == "Antes de 2000", "< 2000", ano_categoria)
   )
 
 anonasc_calc <- anonasc %>%
@@ -684,7 +684,7 @@ server <- function(input, output, session) {
       rownames = FALSE,
       colnames = c("Ano", "Ativos e Indígenas", "Somente Ativos", "Diferença", "% Ativ. Indig.", "% Só Ativos")
     ) %>%
-      formatRound(columns = c(1:3), digits = 0, mark = ".") %>%
+      formatRound(columns = c(2:3), digits = 0, mark = ".") %>%
       formatRound(columns = c(4:5), digits = 2) %>%
       formatStyle(1, target = 'row', backgroundColor = styleEqual("< 2000", '#ffcccc'))
   })

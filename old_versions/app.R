@@ -232,6 +232,18 @@ gerar_crosstab <- function(df, linha_var, coluna_var, tipo_valor) {
                        values_from = freq, values_fill = 0)
   
   valor_cols <- setdiff(names(tab), linha_var)
+  
+  # Se a coluna_var eh idade_cat, reordenar as colunas conforme a ordem cronologica
+  if (coluna_var == "idade_cat") {
+    # Manter apenas as colunas que existem na tabela
+    valor_cols_ordenado <- intersect(idade_ordem, valor_cols)
+    # Adicionar qualquer coluna que nao esteja em idade_ordem (por seguranca)
+    valor_cols_ordenado <- c(valor_cols_ordenado, setdiff(valor_cols, idade_ordem))
+    valor_cols <- valor_cols_ordenado
+  } else {
+    valor_cols <- sort(valor_cols)
+  }
+  
   tab$Total <- rowSums(tab[valor_cols])
   
   total_linha <- tab %>%
@@ -255,6 +267,10 @@ gerar_crosstab <- function(df, linha_var, coluna_var, tipo_valor) {
     tab_completa <- tab_completa %>%
       mutate(across(all_of(valor_cols_com_total), ~ round(.x / grande_total * 100, 1)))
   }
+  
+  # Reordenar as colunas finais conforme a ordem definida
+  colunas_finais <- c(linha_var, valor_cols_com_total)
+  tab_completa <- tab_completa[, colunas_finais]
   
   tab_completa
 }
