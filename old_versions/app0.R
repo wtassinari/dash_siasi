@@ -2,7 +2,6 @@
 # DASHBOARD SIASI - VERSÃO 6 (CARDS + REGISTROS + LOGIN)
 # ============================================
 
-
 suppressWarnings({
   library(tidyverse)
   library(tidyr)
@@ -11,7 +10,7 @@ suppressWarnings({
   library(shiny)
   library(shinydashboard)
   library(plotly)
-  library(shinyWidgets)
+ library(shinyWidgets)
 })
 
 # ============================================
