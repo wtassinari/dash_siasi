@@ -186,9 +186,9 @@ tabulador_dados$ano <- as.character(tabulador_dados$ano)
 
 # Definir ordem correta de idade_cat
 idade_ordem <- c(
-  "Até 3 meses",
-  "De 3 meses a 6 meses",
-  "De 6 meses a 1 ano",
+  "0 a 6 dias",
+  "7 a 27 dias",
+  "28 a 364 dias",
   "1 a 4 anos",
   "5 a 9 anos",
   "10 a 14 anos",
@@ -213,11 +213,22 @@ vars_tabulador <- c("ano", "idade_cat", "tp_sexo", "st_indigena", "ds_dsei_aldei
 
 # Função auxiliar para gerar tabela cruzada
 gerar_crosstab <- function(df, linha_var, coluna_var, tipo_valor) {
-  # Converter coluna de linha para character se for factor
-  if (is.factor(df[[linha_var]])) {
+  # Se idade_cat eh a variável de linha, preservar o factor ordenado
+  # para que o group_by respeite a ordem
+  if (linha_var == "idade_cat") {
+    df[[linha_var]] <- factor(df[[linha_var]], levels = idade_ordem, ordered = TRUE)
+  }
+  # Se idade_cat eh a variável de coluna, converter para character apenas aqui
+  # (ja que será usada como nomes de coluna no pivot)
+  if (coluna_var == "idade_cat") {
+    df[[coluna_var]] <- as.character(df[[coluna_var]])
+  }
+  # Converter linha_var para character apenas se NÃO for idade_cat
+  if (is.factor(df[[linha_var]]) && linha_var != "idade_cat") {
     df[[linha_var]] <- as.character(df[[linha_var]])
   }
-  if (is.factor(df[[coluna_var]])) {
+  # Converter coluna_var para character se for factor e não for idade_cat (ja tratado acima)
+  if (is.factor(df[[coluna_var]]) && coluna_var != "idade_cat") {
     df[[coluna_var]] <- as.character(df[[coluna_var]])
   }
   
@@ -231,9 +242,7 @@ gerar_crosstab <- function(df, linha_var, coluna_var, tipo_valor) {
   
   # Se a coluna_var eh idade_cat, reordenar as colunas conforme a ordem cronologica
   if (coluna_var == "idade_cat") {
-    # Manter apenas as colunas que existem na tabela
     valor_cols_ordenado <- intersect(idade_ordem, valor_cols)
-    # Adicionar qualquer coluna que nao esteja em idade_ordem (por seguranca)
     valor_cols_ordenado <- c(valor_cols_ordenado, setdiff(valor_cols, idade_ordem))
     valor_cols <- valor_cols_ordenado
   } else {
@@ -245,6 +254,14 @@ gerar_crosstab <- function(df, linha_var, coluna_var, tipo_valor) {
   total_linha <- tab %>%
     summarise(across(all_of(c(valor_cols, "Total")), sum)) %>%
     mutate(!!linha_var := "Total", .before = 1)
+  
+  # Reordenar linhas: se a variável de linha é idade_cat, usar a ordem cronológica
+  if (linha_var == "idade_cat") {
+    linhas_ordem_vec <- intersect(idade_ordem, as.character(tab[[linha_var]]))
+    linhas_resto <- setdiff(as.character(tab[[linha_var]]), idade_ordem)
+    linhas_finais <- c(linhas_ordem_vec, linhas_resto)
+    tab <- tab[match(as.character(tab[[linha_var]]), linhas_finais), , drop = FALSE]
+  }
   
   tab_completa <- bind_rows(tab, total_linha)
   valor_cols_com_total <- c(valor_cols, "Total")
@@ -658,7 +675,7 @@ server <- function(input, output, session) {
               ),
               extensions = c('Buttons', 'Scroller'),
               rownames = FALSE,
-              colnames = c("Ano", "Ativos e Indígenas", "Somente Ativos", "Diferença", "% Ativ. Indig.", "% Só Ativos")
+              colnames = c("Ano", "Só indígenas", "Indígenas e não indígenas", "Diferença", "% Só Indig.", "% Indig. e não indig.")
     ) %>%
       formatRound(columns = c(1:3), digits = 0, mark = ".") %>%
       formatRound(columns = c(4:5), digits = 2) %>%
@@ -671,15 +688,15 @@ server <- function(input, output, session) {
       mutate(ano_categoria = as.numeric(ano_categoria))
     
     plot_ly(data = anonasc_numerico) %>%
-      add_trace(x = ~ano_categoria, y = ~ativos_e_indigenas, name = "Ativos e Indígenas",
+      add_trace(x = ~ano_categoria, y = ~ativos_e_indigenas, name = "Só indígenas",
                 type = "scatter", mode = "lines+markers",
                 line = list(color = '#e74c3c', width = 2),
                 marker = list(color = '#e74c3c', size = 6)) %>%
-      add_trace(x = ~ano_categoria, y = ~somente_ativos, name = "Somente Ativos",
+      add_trace(x = ~ano_categoria, y = ~somente_ativos, name = "Indígenas e não indígenas",
                 type = "scatter", mode = "lines+markers",
                 line = list(color = '#3498db', width = 2),
                 marker = list(color = '#3498db', size = 6)) %>%
-      layout(title = "Nascimentos: Ativos e Indígenas vs Somente Ativos",
+      layout(title = "Nascimentos: Só indígenas vs Indígenas e não indígenas",
              xaxis = list(
                title = "Ano",
                tickangle = 45,
@@ -751,7 +768,7 @@ server <- function(input, output, session) {
               ),
               extensions = c('Buttons', 'Scroller'),
               rownames = FALSE,
-              colnames = c("DSEI", "Ano", "Ativ. Indig.", "Ativos", "Diferença", "% Indig.", "% Ativos", "Cresc. % Ativos", "Cresc. % Indig.")
+              colnames = c("DSEI", "Ano", "Só Indig.", "Indig. e não indig.", "Diferença", "% Indig.", "% Indig. e não indig.", "Cresc. % Indig. e não indig.", "Cresc. % Só Indig.")
     ) %>%
       formatRound(columns = c(3:5), digits = 0, mark = ".") %>%
       formatRound(columns = c(6:9), digits = 2) %>%
@@ -766,10 +783,10 @@ server <- function(input, output, session) {
     if (nrow(dados) == 0) return(plotly_empty() %>% layout(title = "Sem dados disponíveis"))
     
     plot_ly(dados) %>%
-      add_trace(x = ~ano_num, y = ~frequencia_ativos_indigenas, name = "Ativos e Indígenas",
+      add_trace(x = ~ano_num, y = ~frequencia_ativos_indigenas, name = "Só indígenas",
                 type = "scatter", mode = "lines+markers",
                 line = list(color = '#2980b9', width = 2), marker = list(size = 5)) %>%
-      add_trace(x = ~ano_num, y = ~frequencia_ativos, name = "Ativos",
+      add_trace(x = ~ano_num, y = ~frequencia_ativos, name = "Indígenas e não indígenas",
                 type = "scatter", mode = "lines+markers",
                 line = list(color = '#e74c3c', width = 2, dash = "dash"), marker = list(size = 5)) %>%
       layout(title = paste("Nascimentos -", dsei_selecionado),
@@ -799,7 +816,7 @@ server <- function(input, output, session) {
               ),
               extensions = c('Buttons', 'Scroller'),
               rownames = FALSE,
-              colnames = c("Ano", "Somente Ativos", "Ativos e Indígenas", "Diferença", "% Só Ativos", "% Ativ. Indig.")
+              colnames = c("Ano", "Indígenas e não indígenas", "Só indígenas", "Diferença", "% Indig. e não indig.", "% Só Indig.")
     ) %>%
       formatRound(columns = c(2:4), digits = 0, mark = ".") %>%
       formatRound(columns = c(5:6), digits = 2) %>%
@@ -813,13 +830,13 @@ server <- function(input, output, session) {
       arrange(ano_categoria)
     
     plot_ly(data = obitos_numerico) %>%
-      add_trace(x = ~ano_categoria, y = ~somente_ativos, name = "Somente Ativos",
+      add_trace(x = ~ano_categoria, y = ~somente_ativos, name = "Indígenas e não indígenas",
                 type = "scatter", mode = "lines+markers",
                 line = list(color = '#3498db', width = 2), marker = list(color = '#3498db', size = 6)) %>%
-      add_trace(x = ~ano_categoria, y = ~ativos_e_indigenas, name = "Ativos e Indígenas",
+      add_trace(x = ~ano_categoria, y = ~ativos_e_indigenas, name = "Só indígenas",
                 type = "scatter", mode = "lines+markers",
                 line = list(color = '#e74c3c', width = 2), marker = list(color = '#e74c3c', size = 6)) %>%
-      layout(title = "Óbitos: Ativos e Indígenas vs Somente Ativos",
+      layout(title = "Óbitos: Só indígenas vs Indígenas e não indígenas",
              xaxis = list(
                title = "Ano", tickangle = 45,
                tickvals = obitos_numerico$ano_categoria,
@@ -878,7 +895,7 @@ server <- function(input, output, session) {
                 scrollY = "300px", scrollCollapse = TRUE, scrollX = TRUE, paging = FALSE
               ),
               extensions = c('Buttons', 'Scroller'), rownames = FALSE,
-              colnames = c("DSEI", "Ano", "Só Ativos", "Ativ. Indig.", "Diferença", "% Só Ativos", "% Ativ. Indig.", "Cresc. % Ativos", "Cresc. % Indig.")
+              colnames = c("DSEI", "Ano", "Indig. e não indig.", "Só Indig.", "Diferença", "% Indig. e não indig.", "% Só Indig.", "Cresc. % Indig. e não indig.", "Cresc. % Só Indig.")
     ) %>%
       formatRound(columns = c(3:5), digits = 0, mark = ".") %>%
       formatRound(columns = c(6:9), digits = 2) %>%
@@ -893,10 +910,10 @@ server <- function(input, output, session) {
     if (nrow(dados) == 0) return(plotly_empty() %>% layout(title = "Sem dados disponíveis"))
     
     plot_ly(dados) %>%
-      add_trace(x = ~ano_num, y = ~frequencia_indigenas, name = "Ativos e Indígenas",
+      add_trace(x = ~ano_num, y = ~frequencia_indigenas, name = "Só indígenas",
                 type = "scatter", mode = "lines+markers",
                 line = list(color = '#2980b9', width = 2), marker = list(size = 5)) %>%
-      add_trace(x = ~ano_num, y = ~frequencia_ativos, name = "Somente Ativos",
+      add_trace(x = ~ano_num, y = ~frequencia_ativos, name = "Indígenas e não indígenas",
                 type = "scatter", mode = "lines+markers",
                 line = list(color = '#e74c3c', width = 2, dash = "dash"), marker = list(size = 5)) %>%
       layout(title = paste("Óbitos -", dsei_selecionado),
@@ -917,7 +934,7 @@ server <- function(input, output, session) {
                 scrollY = "300px", scrollCollapse = TRUE, scrollX = TRUE, paging = FALSE
               ),
               extensions = c('Buttons', 'Scroller'), rownames = FALSE,
-              colnames = c("Ano", "Ativ. Indig.", "Só Ativos", "Diferença", "% Indig.", "% Ativos", "Cresc. Abs. Indig.", "Cresc. Abs. Ativos", "Cresc. % Indig.", "Cresc. % Ativos")
+              colnames = c("Ano", "Só Indig.", "Indig. e não indig.", "Diferença", "% Indig.", "% Indig. e não indig.", "Cresc. Abs. Indig.", "Cresc. Abs. Indig. e não indig.", "Cresc. % Indig.", "Cresc. % Indig. e não indig.")
     ) %>%
       formatRound(columns = c(2:4, 7:8), digits = 0, mark = ".") %>%
       formatRound(columns = c(5:6, 9:10), digits = 2)
@@ -927,9 +944,9 @@ server <- function(input, output, session) {
     populacao_numerico <- populacao %>% filter(!is.na(ano)) %>% mutate(ano = as.numeric(ano))
     
     plot_ly(populacao_numerico) %>%
-      add_trace(x = ~ano, y = ~ativos_e_indigenas, name = "Ativos e Indígenas",
+      add_trace(x = ~ano, y = ~ativos_e_indigenas, name = "Só indígenas",
                 type = "scatter", mode = "lines", fill = 'tozeroy', fillcolor = 'rgba(231, 76, 60, 0.3)', line = list(color = '#e74c3c', width = 2)) %>%
-      add_trace(x = ~ano, y = ~somente_ativos, name = "Somente Ativos",
+      add_trace(x = ~ano, y = ~somente_ativos, name = "Indígenas e não indígenas",
                 type = "scatter", mode = "lines", fill = 'tonexty', fillcolor = 'rgba(52, 152, 219, 0.3)', line = list(color = '#3498db', width = 2)) %>%
       layout(title = "Evolução Populacional",
              xaxis = list(title = "Ano", dtick = 2), yaxis = list(title = "População", tickformat = ",.0f"),
@@ -957,7 +974,7 @@ server <- function(input, output, session) {
                 scrollY = "300px", scrollCollapse = TRUE, scrollX = TRUE, paging = FALSE
               ),
               extensions = c('Buttons', 'Scroller'), rownames = FALSE,
-              colnames = c("DSEI", "Ano", "Ativ. Indig.", "Só Ativos", "Diferença", "Cresc. % Indig.", "Cresc. % Ativos")
+              colnames = c("DSEI", "Ano", "Só Indig.", "Indig. e não indig.", "Diferença", "Cresc. % Indig.", "Cresc. % Indig. e não indig.")
     ) %>%
       formatRound(columns = c(3:5), digits = 0, mark = ".") %>%
       formatRound(columns = c(6:7), digits = 2)
@@ -971,9 +988,9 @@ server <- function(input, output, session) {
     if (nrow(dados) == 0) return(plotly_empty() %>% layout(title = "Sem dados disponíveis"))
     
     plot_ly(dados) %>%
-      add_trace(x = ~ano, y = ~ativos_e_indigenas, name = "Ativos e Indígenas",
+      add_trace(x = ~ano, y = ~ativos_e_indigenas, name = "Só indígenas",
                 type = "scatter", mode = "lines+markers", line = list(color = '#2980b9', width = 2), marker = list(size = 5)) %>%
-      add_trace(x = ~ano, y = ~somente_ativos, name = "Somente Ativos",
+      add_trace(x = ~ano, y = ~somente_ativos, name = "Indígenas e não indígenas",
                 type = "scatter", mode = "lines+markers", line = list(color = '#e74c3c', width = 2, dash = "dash"), marker = list(size = 5)) %>%
       layout(title = paste("População -", dsei_selecionado),
              xaxis = list(title = "Ano", dtick = 1), yaxis = list(title = "População", tickformat = ",.0f"),
