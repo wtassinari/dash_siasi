@@ -339,7 +339,7 @@ dashboard_ui <- dashboardPage(
   dashboardHeader(
     title = tags$span(
       # Aumentando a altura para 50px conforme solicitado
-      tags$img(src = "siasi_fiocruz.png", height = "60", style = "margin-right: 10px; vertical-align: middle;"),
+      tags$img(src = "sesai_logo.png", height = "40", style = "margin-right: 10px; vertical-align: middle;"),
       # Envolvendo o texto em um span para controlar o tamanho da fonte e peso
       tags$span("Dashboard SIASI", style = "font-size: 22px; font-weight: bold; vertical-align: middle;")
     ),
